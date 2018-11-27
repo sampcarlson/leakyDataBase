@@ -1,0 +1,48 @@
+Elevation Zone,Management Category,Reach,Network,Confinement,"Confinement, ind. ch. width (m/m)",Reach length (m),BF width (m),Valley width (m),Logjams/100m valley (#),Wood vol./ 100m valley (m3),WoodVolPerArea,Wood pieces/ 100 m valley (#),Pool OM vol./ 100m valley (m3),Multithread planform,Logjam sediment OC (Mg/ha),Pool sediment OC (Mg/ha),Logjam sediment OC/ 100m valley (Mg) ,Pool sediment OC/ 100m valley (Mg),Y,X,Data Source
+Subalpine,OU,CONYu,NSV,P,3.1,500,7.7,24,1.4,16.22,0.021064935,77.1,0.32,Y,3.315,0.773,0.315,0.073,40.1802,-105.5991,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,OU,HUNTERSc,NSV,P,3.8,220,6.5,25,2,13.39,0.0206,44,0,Y,3.729,0,0.327,0,40.2223,-105.5921,Livers and Wohl (2016)
+Subalpine,OU,HUNTERSu,NSV,P,5.5,500,4.6,25,1.7,9.57,0.020804348,40.2,0.12,Y,5.374,0.441,0.335,0.028,40.2215,-105.5907,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,OU,NSVH,NSV,U,12.4,275,3.3,47,12.6,102.9,0.311818182,272.2,6.2,Y,21.088,5.837,5.144,1.424,40.2156,-105.6386,Livers and Wohl (2016)
+Subalpine,OU,NSVL,NSV,U,10.3,250,6.1,76,16.2,36.22,0.059377049,225.8,6.45,Y,9.322,8.216,1.683,1.483,40.2067,-105.6153,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,OU,NSVU,NSV,U,9,500,6.8,61,5.6,70.05,0.103014706,139,5.75,Y,27.501,5.024,7.23,1.321,40.2103,-105.6324,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,OU,OUZELu,NSV,P,4.5,550,5.1,39,1.2,26.69,0.052333333,111.6,1.33,Y,5.17,2.135,0.74,0.306,40.2,-105.6313,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,YU,GC,GC,P,3.5,900,9.1,32,2.1,2.31,0.002538462,18.6,0.72,N,5.362,1.131,0.628,0.132,40.3142,-105.6354,Livers and Wohl (2016)
+Subalpine,YU,GLACIERc,GC,P,4.9,150,4.5,22,0,0.74,0.001644444,10.7,0,N,0,0,0,0,40.2975,-105.641,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,YU,GLACIERu,GC,U,15,500,5.8,100,3,24.69,0.042568966,203,1.71,Y,4.743,1.972,0.763,0.317,40.2956,-105.6476,Livers and Wohl (2016)
+Subalpine,YU,MILLu,GC,P,5.7,380,3.7,21,0.9,5.87,0.015864865,80.6,0.53,N,2.252,2.465,0.09,0.098,40.3292,-105.6367,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,YU,OUZELa,NSV,P,5.9,500,9.2,54,1,19.8,0.021521739,84,1.06,N,19.714,2.131,1.817,0.197,40.2006,-105.6092,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,YU,OUZELb,NSV,U,9.7,500,4.9,57,2.2,27.18,0.055469388,100.7,0.12,Y,7.621,0.233,0.75,0.023,40.2027,-105.6188,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,YM,CLP,SFP,U,9,500,17.3,155,0,0.13,7.51E-05,0.9,0,N,0,0,0,0,40.5236,-105.748,Livers and Wohl (2016)
+Subalpine,YM,MULL,Snowy,P,4.7,500,4.6,24,0.8,10.31,0.022413043,57.6,0.06,Y,6.302,0.185,0.409,0.012,41.2318,-106.3875,Livers and Wohl (2016)
+Subalpine,YM,ROCK,Snowy,U,13.7,500,6.1,89,0,0.59,0.000967213,4,0,Y,0,0,0,0,41.4399,-106.1879,Livers and Wohl (2016)
+Subalpine,YM,SFP,SFP,P,4.2,1000,12,51,0.8,2.97,0.002475,12.8,0.01,N,1.424,0.011,0.195,0.002,40.6063,-105.5356,Livers and Wohl (2016); Sutfin (2016)
+Subalpine,YM,SFREN1,Snowy,P,6.7,500,13.2,88,0,3.26,0.002469697,19.8,0,N,0,0,0,0,41.2594,-106.4104,Livers and Wohl (2016)
+Subalpine,YM,Corral 1,SFP,P,6.8,400,4,27,0,0.05,0.000125,0.8,0,N,0,0,0,0,40.5175,-105.7712,this study
+Subalpine,YM,Corral 2,SFP,P,6.6,790,5,33,0,0.01,0.00002,0.3,0,N,0,0,0,0,40.5192,-105.762,this study
+Subalpine,YM,Hague,SFP,P,7.4,430,6.5,48,0.5,2.43,0.003738462,3.7,,N,,,,,40.5158,-105.7414,this study
+Subalpine,YM,Upper Poudre,SFP,P,3.9,1050,16,62,0,0.12,0.000075,0.8,0,N,0,0,0,0,40.523,-105.7485,this study
+Subalpine,YM,La Poudre Pass,SFP,P,3.3,300,13.2,43,0,0.15,0.000113636,1.3,0,N,0,0,0,0,40.5231,-105.7492,this study
+Subalpine,YM,Roaring,SFP,P,7,540,4.3,30,0.9,6.72,0.015627907,20.6,,N,,,,,40.7311,-105.7552,this study
+Montane,OU,FC2,Other,P,3.5,37,3.6,12.5,5.4,4.42,0.012277778,37.8,1.73,,,11.134,,0.397,40.6035,-105.549,Jackson (2014); Jackson and Wohl (2015)
+Montane,OU,LBC1,Other,P,3.5,57,6.1,21.2,3.5,19.78,0.03242623,40.4,27.03,,,101.289,,6.212,40.6213,-105.5379,Jackson (2014); Jackson and Wohl (2015)
+Montane,OU,LBC12,Other,P,3.3,65,5,16.8,7.7,14.24,0.02848,70.8,0,,,0,,0,40.624,-105.5893,Jackson (2014); Jackson and Wohl (2015)
+Montane,OU,LBC14,Other,P,3.4,45,5.2,17.9,2.2,1.2,0.002307692,31.1,1,,,4.39,,0.229,40.6353,-105.6092,Jackson (2014); Jackson and Wohl (2015)
+Montane,OU,NFKP5,Other,P,4,50,4.4,17.6,4,10.35,0.023522727,64,0.26,,,1.352,,0.06,40.8168,-105.6991,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,BC1,Other,P,3.8,40,3.9,14.7,0,1.26,0.003230769,15,1.56,,,7.491,,0.289,40.6589,-105.5447,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,BC2,Other,P,3.5,37,4.1,14.4,0,0.52,0.001268293,24.3,2.2,,,9.927,,0.408,40.6588,-105.5456,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,BC3,Other,P,4.5,30,3.3,14.5,0,0.99,0.003,10,0.89,,,5.056,,0.164,40.6616,-105.5513,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,BC4,Other,P,4.3,35,3.3,14.3,2.9,0.03,9.09E-05,5.7,0.69,,,3.851,,0.128,40.6618,-105.5519,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,FC5,Other,P,3.6,41,3.8,13.9,2.4,0.57,0.0015,29.3,1.42,,,6.852,,0.263,40.5937,-105.5929,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,FC6,Other,P,4.5,35,3.3,14.9,8.6,3.44,0.010424242,57.1,3.77,,,20.959,,0.699,40.5931,-105.5922,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,FC7,Other,P,3.9,35,3.6,13.9,2.9,6.08,0.016888889,68.6,1.04,,,5.361,,0.192,40.5947,-105.5851,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,FC8,Other,P,3.2,30,3.4,10.8,3.3,5.78,0.017,36.7,0,,,0,,0,40.595,-105.5835,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,JG1,Other,P,3.2,25,2.6,8.3,0,0.26,0.001,24,1.85,,,13.408,,0.342,40.6262,-105.5398,Jackson (2014); Jackson and Wohl (2015)
+Montane,YU,LBC8,Other,P,3.1,56,5,15.5,3.6,3.86,0.00772,26.8,0,,,0,,0,40.6177,-105.5514,Jackson (2014); Jackson and Wohl (2015)
+Montane,YM,ElkC1,Other,U,8.3,120,4.7,39,1,1.08,0.002297872,7,0.12,,,2,,0.12,40.7475,-105.5414,this study
+Montane,YM,ManC,Other,U,11.7,154,2.9,34,1,1.18,0.004068966,6.5,0.02,,,0.5,,0.02,40.7336,-105.5912,this study
+Montane,YM,ElkC2,Other,U,18.7,170,3,56,2,0.34,0.001133333,12,0.18,,,3.6,,0.18,40.7573,-105.6143,this study
+Montane,YM,ElkC3,Other,U,16.6,165,4.1,68,2,1.04,0.002536585,2.4,0.02,,,0.286,,0.02,40.7592,-105.581,this study
+Montane,YM,LonePineC,Other,U,17.9,187,6.6,118,0,0.48,0.000727273,3,0,,,0,,,40.7865,-105.5387,this study
+Montane,YM,SevenmileC,Other,U,11.5,135,4.8,55,1,1.47,0.0030625,5,0.65,,,10.833,,0.65,40.7023,-105.5844,this study
+Montane,YM,DaddG,Other,U,19,130,2,38,2,0.3,0.0015,4,0.18,,,6,,0.18,40.6955,-105.5418,this study
+Montane,YM,BennettC,Other,U,18.7,135,3.1,58,1,1.68,0.005419355,5,0.44,,,11,,0.44,40.6566,-105.5373,this study
