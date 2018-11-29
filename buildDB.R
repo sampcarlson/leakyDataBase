@@ -15,3 +15,9 @@ lapply(dbListTables(leakyDB),FUN=delete_data,db=leakyDB)
 ############------------define watersheds----------###########
 wshedDefs=addWatershedDefinitions( read.csv('C:/Users/sam/Documents/spatial/data/WatershedOutflowPoints/allWsheds_13n.csv') )
 
+
+###################-------------------add widths (from Mike and I) --------################
+widths=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/FinalWidths_11_2018.csv")
+#can't handle data without coordinates - bother mike about this if necessary
+widths=widths[complete.cases(widths[,c("X","Y")]),]
+addData( inEPSG=4326)

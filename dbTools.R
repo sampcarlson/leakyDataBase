@@ -1,5 +1,6 @@
 library(rgrass7)
 library(sp)
+library(rgdal)
 
 delete_data=function(db,table){
   dbExecute(db,paste0("DELETE FROM ",table))
@@ -53,9 +54,35 @@ addPoint=function(X,Y,EPSG=32613,onStream=T){
   return(newPointIDX)
 }
 
-convertEPSG=function(locationIDX){}
+convertEPSG=function(inXYdf, inEPSG=4326, targetEPSG=targetEPSG){
 
-snapToStream=function(pointIDX){}
+  sp::coordinates(inXYdf)=c("X","Y")
+  inp4s=paste0("+init=epsg:",inEPSG)
+  newp4s=paste0("+init=epsg:",targetEPSG)
+  
+  proj4string(projectMe)=inp4s
+  projected=spTransform(inXYdf,newp4s)
+  result=cbind(projected@data,projected@coords)
+  return(result)
+}
+
+snapToStream=function(inXYdf){
+  inXYdf$tempSnapID=1:nrow(inXYdf)
+  
+  InitGrass_byRaster(rasterPath="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/streamsRast_xxl.tif",grassRasterName="streamRast")
+  
+  writeVECT(SDF=SpatialPointsDataFrame(coords=inXYdf[,c("X","Y")],data=data.frame(tempSnapID=inXYdf$tempSnapID)),
+            "tempShape",v.in.ogr_flags = c("o","overwrite"))
+  
+  execGRASS("r.stream.snap",input="tempShape",stream_rast="streamRast",radius=20,output="tempShape_snap",flags=c("overwrite","quiet"))
+  execGRASS("v.db.addtable",map="tempShape_snap",flags="quiet")
+  execGRASS("v.db.join",map="tempShape_snap",column="cat",other_table="tempShape",other_column="cat",flags="quiet")
+  snapped=grassTableToDF( execGRASS("v.report",map="tempShape_snap",option="coor",flags="quiet", intern=T) )
+  result=left_join(snapped[,c("tempSnapID","x","y")],inXYdf[,!names(inXYdf) %in% c("X","Y")],by="tempSnapID")
+  names(result)[names(result)=="x"]="X"
+  names(result)[names(result)=="y"]="Y"
+  return(result)
+  }
 
 addArea=function(EPSG=32613,filePath=shapePath,basePathName="leakyArea_",grassFileName="dbWriteMe"){
   newAreaIDX=getNewIDX("Areas","areaIDX")
