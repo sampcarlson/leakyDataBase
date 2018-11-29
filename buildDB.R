@@ -3,14 +3,21 @@ source("dbTools.R")
 source("C:/Users/sam/Documents/R/projects/rGrassTools/grassTools.r")
 
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
-shapePath="C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/shapes/"
+dbShapePath="C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/shapes/"
 targetEPSG=32613
+streamSnapDistCells=20
+#currently relying on the threshold set in r.watershed
+#streamSnapThresholdCells=5000
+addMidpoint=T
 
 dbListTables(leakyDB)
 
 #remove all data:
 lapply(dbListTables(leakyDB),FUN=delete_data,db=leakyDB)
 #run freshStart.sql in r project directory to fully trash and recreate db
+
+#init grass session for all DB processes:
+InitGrass_byRaster()
 
 ############------------define watersheds----------###########
 wshedDefs=addWatershedDefinitions( read.csv('C:/Users/sam/Documents/spatial/data/WatershedOutflowPoints/allWsheds_13n.csv') )

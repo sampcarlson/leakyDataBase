@@ -4,10 +4,10 @@ library(rgrass7)
 source("C:/Users/sam/Documents/R/projects/rGrassTools/grassTools.r")
 gc()
 #InitGrass_byRaster(rasterPath="C:/Users/Sam/Desktop/spatial/QgisEnvironment/Inputs_and_scripts/allDemRaw/all4_wgs84_13n.tif")
-InitGrass_byRaster(rasterPath="C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim.tif")
+InitGrass_byRaster(rasterPath="C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
 
 #threshold is in cells, not m^2!!!!
-execGRASS("r.watershed",elevation="dem@PERMANENT",threshold=10000,drainage="flowDir_xxl",stream="streams_rast",spi="streamPower",accumulation="flowAccum_xxl", flags=c("overwrite", "a"))
+execGRASS("r.watershed",elevation="dem@PERMANENT",threshold=5000,convergence=9,drainage="flowDir_xxl",stream="streams_rast",spi="streamPower",accumulation="flowAccum_xxl", flags=c("overwrite", "a"))
 execGRASS("r.thin",input="streams_rast",output="streams_rast",flags="overwrite")
 execGRASS("r.to.vect",input="streams_rast",output="streams_vect",type="line",flags="overwrite")
 execGRASS("v.split",input="streams_vect",output="streamSegs_250m_vect",length=250,flags="overwrite")
