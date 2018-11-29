@@ -1,2 +1,2 @@
 # leakyDataBase
-bould and maintain sqlite db foe leaky rivers project
+build and maintain sqlite db for leaky rivers project
