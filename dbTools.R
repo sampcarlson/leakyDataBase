@@ -18,24 +18,57 @@ delete_data=function(db,table){
 
 #data, containing $X, $Y, $dateTime, $value, $QCStatusOK, $metric, $unit, $method
 addData_points=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
+  dataDF$X=as.numeric(as.character(dataDF$X))
+  dataDF$Y=as.numeric(as.character(dataDF$Y))
   f=updateFlags(flags,...)
   if(!"QCStatusOK" %in% names(dataDF)){
     dataDF$QCStatusOK="TRUE"
   }
   addData_points_worker=function(dataDF, #single row
-                                 batchName,batchSource){
-    dataTypeIDX=addDataType(metric,unit,method)
-    batchIDX=addBatch(batchName,batchSource)
-    locationIDX=addLocation(pointXYdf=dataDF,flags=f)
-    
-    writeDF=data.frame(dataTypeIDX=dataTypeIDX,batchIDX=batchIDX,locationIDX=locationIDX,
-                       dateTime=dataDF$dateTime, value=dataDF$value, QCStatusOK = data$QCStatusOK)
-    dataIDX=writeIfNew(writeDF = writeDF, table="data",
-                       compareNames=c("dataTypeIDX","batchIDX","locationIDX","dateTime","value","QCStatusOK"),
-                       idxColName = "dataIDX")
+                                 batchName,batchSource,flags=f){
+    f=flags
+    dataDF=data.frame(t(dataDF))
+    thisDataTypeIDX=addDataType(metric=dataDF$metric,unit=dataDF$unit,method=dataDF$method)
+    thisBatchIDX=addBatch(batchName,batchSource)
+    thisLocationIDX=addLocation(pointXYdf=dataDF,flags=f)
+    writeDF=data.frame(dataTypeIDX=thisDataTypeIDX,
+                       batchIDX=thisBatchIDX,
+                       locationIDX=thisLocationIDX,
+                       dateTime=dataDF$dateTime, 
+                       value=dataDF$value, 
+                       QCStatusOK = as.numeric(dataDF$QCStatusOK))
+    compareNames=c("dataTypeIDX","batchIDX","locationIDX","dateTime","value","QCStatusOK")
+    if(f$compareData){
+      dataIDX=writeIfNew(writeDF = writeDF, table="data",
+                         compareNames = compareNames,
+                         idxColName = "dataIDX")
+    } else {
+      dataIDX=writeIfNew(writeDF = writeDF, table="data",
+                         compareNames = compareNames,
+                         idxColName = "dataIDX",compare=F)    
+    }
+    #print(paste("added datum:",dataIDX))
   }
   
-  apply(X=dataDF,MARGIN = 1, FUN=addData_points_worker)
+  #convert epsg & write points individually
+  print("adding data...")
+  a=apply(X=dataDF,MARGIN = 1, FUN=addData_points_worker,batchName=batchName,batchSource=batchSource)
+  
+  #vectorized snap
+  print("snapping points to streams...")
+  toSnap=dbGetQuery(leakyDB,"SELECT * FROM Points WHERE onStream = '1'")
+  writeDF=snapToStream(toSnap,flags=f)
+  #drop from points, append snapped data
+  dbExecute(leakyDB,"DELETE FROM Points WHERE onStream = '1'")
+  
+  if("X"%in%names(writeDF)){
+    writeDF[names(writeDF)=="X"]=format(writeDF[names(writeDF)=="X"],10)
+  }
+  if("Y"%in%names(writeDF)){
+    writeDF[names(writeDF)=="Y"]=format(writeDF[names(writeDF)=="Y"],10)
+  }
+
+  dbWriteTable(leakyDB,"Points",writeDF,append=T)
 }
 
 addWatershedDefinitions=function(wshedDefs,flags=defaultFlags,...){
@@ -62,8 +95,6 @@ addWatershedDefinitions=function(wshedDefs,flags=defaultFlags,...){
     thisPointIDX=addPoint(X=wshedDefs$x[i],Y=wshedDefs$y[i],flags=f)
     
     #write to watersheds table:
-    #writeIfNew(writeDF=writeDF,table="Watersheds",compareNames = c("areaIDX","outPointIDX"),idxColName = "watershedID")
-    #ignore duplicate issues here by writing exactly once - these are single-purpose points
     
     writeDF=data.frame(watershedID=wshedDefs$WshedName[i],areaIDX=thisAreaIDX,outPointIDX=thisPointIDX)
     
@@ -75,46 +106,65 @@ addWatershedDefinitions=function(wshedDefs,flags=defaultFlags,...){
 getNewIDX=function(table,idxColName){
   maxIDX=dbGetQuery(leakyDB,paste0("SELECT MAX( ",idxColName," ) FROM ",table))[[1]]
   if(is.na(maxIDX)){
-    newIDX=0
+    newIDX=1
   } else {
     newIDX=maxIDX+1
   }
 }
 
-writeIfNew=function(writeDF,table,compareNames,idxColName,write=T){    #works with 1-row writeDF only at the moment...
+writeIfNew=function(writeDF,table,compareNames,idxColName,write=T,compare=T){    #works with 1-row writeDF only at the moment...
   # writeDF=data.frame(metric="oscar",unit="is a",method="poodle")
   # table="DataTypes"
   # compareNames=c("metric","unit","method")
   # idxColName="dataTypeIDX"
-  
-  returnNameVal=function(name,df){
-    thisVal=df[names(df)==name][1,1]
-    return(paste0(name,"='",thisVal,"'"))
+  if("X"%in%names(writeDF)){
+    writeDF[names(writeDF)=="X"]=format(writeDF[names(writeDF)=="X"],10)
   }
-  whereDF=writeDF[,names(writeDF) %in% compareNames]
-  
-  if(length(compareNames)>1){
-    where=paste0(sapply(names(whereDF),FUN=returnNameVal,df=whereDF),collapse=" AND ")
-    dataTypeIDX=dbGetQuery(leakyDB,paste0("SELECT ",idxColName," FROM ",table," WHERE ",where))[[1]]
-  } 
-  
-  if(length(compareNames)==1){
-    dataTypeIDX=dbGetQuery(leakyDB,paste0("SELECT ",idxColName," FROM ",table," WHERE ",compareNames,"='",whereDF[[1]],"'"))[[1]]
+  if("Y"%in%names(writeDF)){
+    writeDF[names(writeDF)=="Y"]=format(writeDF[names(writeDF)=="Y"],10)
   }
   
-  if(length(dataTypeIDX)==0){
-    newIDX=getNewIDX(table=table,idxColName=idxColName)
-    writeDF$tempIDX=newIDX
+  if(compare){
+    returnNameVal=function(name,df){
+      thisVal=df[names(df)==name][1,1]
+      return(paste0(name,"='",thisVal,"'"))
+    }
+    whereDF=writeDF[,names(writeDF) %in% compareNames]
+    
+    if(length(compareNames)>1){
+      where=paste0(sapply(names(whereDF),FUN=returnNameVal,df=whereDF),collapse=" AND ")
+      compareIDX=dbGetQuery(leakyDB,paste0("SELECT ",idxColName," FROM ",table," WHERE ",where))[[1]]
+    } 
+    
+    if(length(compareNames)==1){
+      compareIDX=dbGetQuery(leakyDB,paste0("SELECT ",idxColName," FROM ",table," WHERE ",compareNames,"='",whereDF[[1]],"'"))[[1]]
+    }
+    
+    
+    if(length(compareIDX)==0){ #if there is no comparable entry, generate new idx, and write 
+      thisIDX=getNewIDX(table=table,idxColName=idxColName)
+      writeDF$tempIDX=thisIDX
+      names(writeDF)[names(writeDF)=="tempIDX"]=idxColName
+      if(write){
+        dbWriteTable(leakyDB,table,writeDF,append=T)
+      }
+      
+    } else { #if there is a comparable entry, use it's idx, and don't write
+      thisIDX=compareIDX
+      writeDF$tempIDX=thisIDX
+      names(writeDF)[names(writeDF)=="tempIDX"]=idxColName
+    }
+    
+  } else { #if no comparison w/ existing data is to be made
+    thisIDX=getNewIDX(table=table,idxColName=idxColName)
+    writeDF$tempIDX=thisIDX
     names(writeDF)[names(writeDF)=="tempIDX"]=idxColName
     if(write){
       dbWriteTable(leakyDB,table,writeDF,append=T)
     }
-  } else {
-    writeDF$tempIDX=dataTypeIDX
-    names(writeDF)[names(writeDF)=="tempIDX"]=idxColName
     
   }
-  return(writeDF[names(writeDF)==idxColName][[1]])
+  return(as.numeric(writeDF[names(writeDF)==idxColName][[1]]))
 }
 
 addDataType=function(metric, unit, method){
@@ -133,50 +183,68 @@ addLocation=function(pointXYdf=NULL,inShpDSN=NULL,areaName=NULL,flags){
   f=flags
   if(!is.null(areaName)){
     areaIDXs=addArea(areaName,inShpDSN,flags=f)
+    #areas have midpoints by default
+    
     if(f$addMidpoint){
-      areaIDX=areaIDXs$areaIDX
-      pointIDX=areaIDXs$pointIDX
+      thisAreaIDX=areaIDXs$areaIDX
+      thisPointIDX=areaIDXs$pointIDX
     } else {
-      areaIDX=areaIDXs
+      thisAreaIDX=areaIDXs
+      thisPointIDX=0
     }
   } else {
-    areaIDX=NULL
-    pointIDX=addPoint(X=pointXYdf$X,Y=pointXYdf$Y,flags=f)
+    thisAreaIDX=0
+    thisPointIDX=addPoint(X=pointXYdf$X,Y=pointXYdf$Y,flags=f)
+    
   }
-  #areas have midpoints by default
-  writeDF=data.frame(isPoint=T,pointIDX=pointIDX,areaIDX=NULL,watershedID="not assigned")
+  
+  writeDF=data.frame(isPoint=as.numeric(T),pointIDX=thisPointIDX,areaIDX=thisAreaIDX,watershedID="not assigned")
   
   #possible NULL comparison error
-  locationIDX=writeIfNew(writeDF=writeDF,table="Locations",compareNames=c("isPoint","pointIDX","areaIDX","watershedID"),idxColName="locationIDX")
+  locationIDX=writeIfNew(writeDF=writeDF,
+                         table="Locations",
+                         compareNames=c("isPoint","pointIDX","areaIDX","watershedID"),
+                         idxColName="locationIDX")
   return(locationIDX)
 }
 
 addPoint=function(X,Y,flags){
   f=flags
-  writeDF=data.frame(X=X,Y=Y,EPSG=f$inEPSG,onStream=f$onStream)
+  writeDF=data.frame(X=X,Y=Y,EPSG=f$inEPSG,onStream=as.numeric(f$onStream))
+  
   
   if(f$inEPSG!=f$dbEPSG){
-    writeDF=convertEPSG_df(writeDF,inEPSG=f$inEPSG,flags=f)
+    writeDF=convertEPSG_df(writeDF,flags=f)
+    writeDF$EPSG=f$dbEPSG
   }
   
-  if(f$onStream){
-    writeDF=snapToStream(writeDF,flags=f)
-  }
+  #this is way to slow running indivudually - vectorize across batch in addData()
+  # if(as.logical(f$onStream)){
+  #   writeDF=snapToStream(writeDF,flags=f)
+  # }
   
+  
+  writeDF$onStream=as.integer(writeDF$onStream)
   pointIDX=writeIfNew(writeDF = writeDF, table = "Points",compareNames = c("X","Y","EPSG","onStream"),idxColName = "pointIDX")
   return(pointIDX)
 }
 
 convertEPSG_df=function(inXYdf,flags){
   f=flags
-  sp::coordinates(inXYdf)=c("X","Y")
+  inXYdf$tempProjectID=1:nrow(inXYdf)
+  
   inp4s=paste0("+init=epsg:",f$inEPSG)
   newp4s=paste0("+init=epsg:",f$dbEPSG)
+  inXYsp=SpatialPointsDataFrame(coords=data.frame(X=as.numeric(as.character(inXYdf$X)),Y=as.numeric(as.character(inXYdf$Y))),data=data.frame(inXYdf$tempProjectID))
+  proj4string(inXYsp)=inp4s
+  projected=spTransform(inXYsp,newp4s)
+  resultXY=cbind(data.frame(projected@coords),data.frame(projected@data))
   
-  proj4string(inXYdf)=inp4s
-  projected=spTransform(inXYdf,newp4s)
-  result=cbind(projected@data,projected@coords)
-  return(result)
+  inXYdf$X=NULL
+  inXYdf$Y=NULL
+  resultXY=left_join(inXYdf,resultXY,by=c("tempProjectID"="inXYdf.tempProjectID"))
+  resultXY$tempProjectID=NULL
+  return(resultXY)
 }
 
 convertEPSG_area=function(inShpDSN,flags){
@@ -189,9 +257,6 @@ convertEPSG_area=function(inShpDSN,flags){
 
 snapToStream=function(inXYdf,flags){
   f=flags
-  if(f$inEPSG!=f$dbEPSG){
-    inXYdf=convertEPSG_df(inXYdf,flags=f)
-  }
   
   inXYdf$tempSnapID=1:nrow(inXYdf)
   
@@ -206,10 +271,13 @@ snapToStream=function(inXYdf,flags){
   execGRASS("v.db.addtable",map="tempShape_snap",flags="quiet")
   execGRASS("v.db.join",map="tempShape_snap",column="cat",other_table="tempShape",other_column="cat",flags="quiet")
   snapped=grassTableToDF( execGRASS("v.report",map="tempShape_snap",option="coor",flags="quiet", intern=T) )
+  inXYdf=plyr::rename(inXYdf,replace=c("X"="old_x","Y"="old_y"))
+  
+  
   result=left_join(snapped[,c("tempSnapID","x","y")],inXYdf[,!names(inXYdf) %in% c("X","Y")],by="tempSnapID")
   names(result)[names(result)=="x"]="X"
   names(result)[names(result)=="y"]="Y"
-  result=result[,names(result) != "tempSnapID"]
+  result=result[,!(names(result) %in% c("tempSnapID","old_x","old_y"))]
   return(result)
 }
 

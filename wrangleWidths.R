@@ -1,4 +1,4 @@
-#wrangele the width data that mike and I collected
+#wrangle the width data that mike and I collected
 library(tidyverse)
 library(reshape2)
 rawWidth=read_csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/CoWidths.csv")[-1,]
@@ -29,8 +29,8 @@ widths$ReachName=widths$Site
 widths$PointName=paste(widths$ReachName,widths$Transect,sep=' #')
 widths=left_join(widths,rawSites[c("Sites","X","Y","Network")],by=c("ReachName" = "Sites"))
 w_long=as.tibble(melt(widths,measure.vars=c("Wetted width","Bank-full width","DepArea_pct")))
-w_long$Value=as.numeric(w_long$value)
-w_long=w_long[!is.na(w_long$Value),]
+w_long$value=as.numeric(w_long$value)
+w_long=w_long[!is.na(w_long$value),]
 w_long$dataType=""
 w_long$unit=""
 w_long$dataType[w_long$variable=="DepArea_pct"]=w_long$`Depositional area units`[w_long$variable=="DepArea_pct"]
