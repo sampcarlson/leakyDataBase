@@ -2,6 +2,24 @@ library(rgrass7)
 library(sp)
 library(rgdal)
 
+splitOnComma=function(inString,which){
+  inString=as.character(inString)
+  if(which=='x'){return(paste0("-",strsplit(inString,", ")[[1]][2]))}
+  if(which=='y'){return(strsplit(inString,", ")[[1]][1])}
+}
+
+addUnitMethod=function(df,name_unit_method_list){
+  df$metric=as.character(df$metric)
+  df$unit=" "
+  df$method=" "
+  for(i in 1:length(name_unit_method_list)){
+    df$metric[df$metric==name_unit_method_list[[i]]$old_name]=name_unit_method_list[[i]]$new_name
+    df$unit[df$metric==name_unit_method_list[[i]]$new_name]=name_unit_method_list[[i]]$unit
+    df$method[df$metric==name_unit_method_list[[i]]$new_name]=name_unit_method_list[[i]]$method
+  }
+  return(df)
+}
+
 updateFlags=function(flags,...){
   l = list(...)
   for(n in names(l)){
@@ -17,20 +35,57 @@ delete_data=function(db,table){
 }
 
 #data, containing $X, $Y, $dateTime, $value, $QCStatusOK, $metric, $unit, $method
-addData_points=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
+addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
+  f=updateFlags(flags,...)
+  if(all(c("areaPath","X") %in%  names(dataDF))){
+    f$addAreas=T
+    f$addPoints=T
+    if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
+      stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method, areaName"))
+    } else{
+      dataDF=dataDF[,names(dataDF) %in% c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName", "areaPath")]
+      dataDF=dataDF[complete.cases(dataDF),]
+    }
+  } else if("areaPath" %in% names(dataDF)){
+    f$addAreas=T
+    f$addPoints=F
+    if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
+      stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method, areaName"))
+    } else{
+      dataDF=dataDF[,names(dataDF) %in% c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName", "areaPath")]
+      dataDF=dataDF[complete.cases(dataDF),]
+    }
+  } else {
+    f$addPoints=T
+    f$addAreas=F
+    if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method") %in% names(dataDF) )){
+      stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method"))
+    } else{
+      dataDF=dataDF[,names(dataDF) %in% c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method")]
+      dataDF=dataDF[complete.cases(dataDF),]
+    }
+  }
+  
+  
   dataDF$X=as.numeric(as.character(dataDF$X))
   dataDF$Y=as.numeric(as.character(dataDF$Y))
-  f=updateFlags(flags,...)
+  
+  
   if(!"QCStatusOK" %in% names(dataDF)){
     dataDF$QCStatusOK="TRUE"
   }
+  
   addData_points_worker=function(dataDF, #single row
                                  batchName,batchSource,flags=f){
     f=flags
     dataDF=data.frame(t(dataDF))
     thisDataTypeIDX=addDataType(metric=dataDF$metric,unit=dataDF$unit,method=dataDF$method)
     thisBatchIDX=addBatch(batchName,batchSource)
-    thisLocationIDX=addLocation(pointXYdf=dataDF,flags=f)
+    if(f$addAreas){
+      thisLocationIDX=addLocation(pointXYdf=dataDF,areaName=dataDF$areaName, inShpDSN=dataDF$areaPath, flags=f)
+    } else {
+      thisLocationIDX=addLocation(pointXYdf=dataDF,flags=f)
+    }
     writeDF=data.frame(dataTypeIDX=thisDataTypeIDX,
                        batchIDX=thisBatchIDX,
                        locationIDX=thisLocationIDX,
@@ -67,7 +122,7 @@ addData_points=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   if("Y"%in%names(writeDF)){
     writeDF[names(writeDF)=="Y"]=format(writeDF[names(writeDF)=="Y"],10)
   }
-
+  
   dbWriteTable(leakyDB,"Points",writeDF,append=T)
 }
 
@@ -181,8 +236,10 @@ addBatch=function(batchName,batchSource){
 
 addLocation=function(pointXYdf=NULL,inShpDSN=NULL,areaName=NULL,flags){
   f=flags
-  if(!is.null(areaName)){
-    areaIDXs=addArea(areaName,inShpDSN,flags=f)
+
+    if(f$addAreas){
+    #for now, area name = path = data source name
+    areaIDXs=addArea(areaName=areaName,inShpDSN=areaPath,flags=f)
     #areas have midpoints by default
     
     if(f$addMidpoint){
@@ -192,10 +249,10 @@ addLocation=function(pointXYdf=NULL,inShpDSN=NULL,areaName=NULL,flags){
       thisAreaIDX=areaIDXs
       thisPointIDX=0
     }
-  } else {
+  }
+  if(f$addPoints){
     thisAreaIDX=0
     thisPointIDX=addPoint(X=pointXYdf$X,Y=pointXYdf$Y,flags=f)
-    
   }
   
   writeDF=data.frame(isPoint=as.numeric(T),pointIDX=thisPointIDX,areaIDX=thisAreaIDX,watershedID="not assigned")
@@ -222,7 +279,6 @@ addPoint=function(X,Y,flags){
   # if(as.logical(f$onStream)){
   #   writeDF=snapToStream(writeDF,flags=f)
   # }
-  
   
   writeDF$onStream=as.integer(writeDF$onStream)
   pointIDX=writeIfNew(writeDF = writeDF, table = "Points",compareNames = c("X","Y","EPSG","onStream"),idxColName = "pointIDX")
@@ -267,7 +323,7 @@ snapToStream=function(inXYdf,flags){
   writeVECT(SDF=SpatialPointsDataFrame(coords=inXYdf[,c("X","Y")],data=data.frame(tempSnapID=inXYdf$tempSnapID)),
             "tempShape",v.in.ogr_flags = c("quiet","o","overwrite"))
   
-  execGRASS("r.stream.snap",input="tempShape",stream_rast="streamRast",radius=20,output="tempShape_snap",flags=c("overwrite","quiet"))
+  execGRASS("r.stream.snap",input="tempShape",stream_rast="streamRast",radius=f$streamSnapDistCells,output="tempShape_snap",flags=c("overwrite","quiet"))
   execGRASS("v.db.addtable",map="tempShape_snap",flags="quiet")
   execGRASS("v.db.join",map="tempShape_snap",column="cat",other_table="tempShape",other_column="cat",flags="quiet")
   snapped=grassTableToDF( execGRASS("v.report",map="tempShape_snap",option="coor",flags="quiet", intern=T) )
