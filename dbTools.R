@@ -34,12 +34,14 @@ delete_data=function(db,table){
   dbExecute(db,paste0("DELETE FROM ",table))
 }
 
-#data, containing $X, $Y, $dateTime, $value, $QCStatusOK, $metric, $unit, $method
+#data, containing $X, $Y, $dateTime, $value, $QCStatusOK, $metric, $unit, $method, $areaName, $areaPath
 addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   f=updateFlags(flags,...)
   if(all(c("areaPath","X") %in%  names(dataDF))){
     f$addAreas=T
     f$addPoints=T
+    f$addMidpoint=F
+    print("Adding areas and points...")
     if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
       stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method, areaName"))
     } else{
@@ -49,7 +51,13 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   } else if("areaPath" %in% names(dataDF)){
     f$addAreas=T
     f$addPoints=F
-    if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
+    if(f$addMidpoint){
+      print("Adding areas and midpoints...")
+    }
+    if(!f$addMidpoint){
+      print("Adding areas...")
+    }
+    if(!all( c("dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
       stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method, areaName"))
     } else{
       dataDF=dataDF[,names(dataDF) %in% c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName", "areaPath")]
@@ -58,6 +66,7 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   } else {
     f$addPoints=T
     f$addAreas=F
+    print("Adding points...")
     if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method") %in% names(dataDF) )){
       stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method"))
     } else{
@@ -66,24 +75,24 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
     }
   }
   
-  
-  dataDF$X=as.numeric(as.character(dataDF$X))
-  dataDF$Y=as.numeric(as.character(dataDF$Y))
-  
+  if(f$addPoints){
+    dataDF$X=as.numeric(as.character(dataDF$X))
+    dataDF$Y=as.numeric(as.character(dataDF$Y))
+  }
   
   if(!"QCStatusOK" %in% names(dataDF)){
     dataDF$QCStatusOK="TRUE"
   }
   
-  addData_points_worker=function(dataDF, #single row
-                                 batchName,batchSource,flags=f){
+  addData_worker=function(dataDF, #single row
+                          batchName,batchSource,flags=f){
     f=flags
     dataDF=data.frame(t(dataDF))
     thisDataTypeIDX=addDataType(metric=dataDF$metric,unit=dataDF$unit,method=dataDF$method)
     thisBatchIDX=addBatch(batchName,batchSource)
     if(f$addAreas){
-      thisLocationIDX=addLocation(pointXYdf=dataDF,areaName=dataDF$areaName, inShpDSN=dataDF$areaPath, flags=f)
-    } else {
+      thisLocationIDX=addLocation(pointXYdf=dataDF,areaName=dataDF$areaName, inShpDSN=as.character(dataDF$areaPath), flags=f)
+    }  else {
       thisLocationIDX=addLocation(pointXYdf=dataDF,flags=f)
     }
     writeDF=data.frame(dataTypeIDX=thisDataTypeIDX,
@@ -106,15 +115,15 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   }
   
   #convert epsg & write points individually
-  print("adding data...")
-  a=apply(X=dataDF,MARGIN = 1, FUN=addData_points_worker,batchName=batchName,batchSource=batchSource)
+  print("reprojecting and adding data...")
+  a=apply(X=dataDF,MARGIN = 1, FUN=addData_worker,batchName=batchName,batchSource=batchSource)
   
   #vectorized snap
   print("snapping points to streams...")
-  toSnap=dbGetQuery(leakyDB,"SELECT * FROM Points WHERE onStream = '1'")
+  toSnap=dbGetQuery(leakyDB,"SELECT * FROM Points WHERE onStream = '0'")
   writeDF=snapToStream(toSnap,flags=f)
   #drop from points, append snapped data
-  dbExecute(leakyDB,"DELETE FROM Points WHERE onStream = '1'")
+  dbExecute(leakyDB,"DELETE FROM Points WHERE onStream = '0'")
   
   if("X"%in%names(writeDF)){
     writeDF[names(writeDF)=="X"]=format(writeDF[names(writeDF)=="X"],10)
@@ -122,7 +131,6 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   if("Y"%in%names(writeDF)){
     writeDF[names(writeDF)=="Y"]=format(writeDF[names(writeDF)=="Y"],10)
   }
-  
   dbWriteTable(leakyDB,"Points",writeDF,append=T)
 }
 
@@ -236,26 +244,27 @@ addBatch=function(batchName,batchSource){
 
 addLocation=function(pointXYdf=NULL,inShpDSN=NULL,areaName=NULL,flags){
   f=flags
-
-    if(f$addAreas){
-    #for now, area name = path = data source name
-    areaIDXs=addArea(areaName=areaName,inShpDSN=areaPath,flags=f)
-    #areas have midpoints by default
+  thisAreaIDX=0
+  thisPointIDX=0
+  
+  if(f$addAreas){
+    thisIsPoint=F
     
-    if(f$addMidpoint){
+    areaIDXs=addArea(areaName=areaName,inShpDSN=inShpDSN,flags=f)
+    #areas have midpoints by default, however:
+    if(f$addMidpoint & !(f$addPoints)){ # only add midpoint if no point coords are specified
       thisAreaIDX=areaIDXs$areaIDX
       thisPointIDX=areaIDXs$pointIDX
     } else {
       thisAreaIDX=areaIDXs
-      thisPointIDX=0
     }
   }
   if(f$addPoints){
-    thisAreaIDX=0
+    thisIsPoint=T
     thisPointIDX=addPoint(X=pointXYdf$X,Y=pointXYdf$Y,flags=f)
   }
   
-  writeDF=data.frame(isPoint=as.numeric(T),pointIDX=thisPointIDX,areaIDX=thisAreaIDX,watershedID="not assigned")
+  writeDF=data.frame(isPoint=as.numeric(thisIsPoint),pointIDX=thisPointIDX,areaIDX=thisAreaIDX,watershedID="not assigned")
   
   #possible NULL comparison error
   locationIDX=writeIfNew(writeDF=writeDF,
@@ -334,6 +343,7 @@ snapToStream=function(inXYdf,flags){
   names(result)[names(result)=="x"]="X"
   names(result)[names(result)=="y"]="Y"
   result=result[,!(names(result) %in% c("tempSnapID","old_x","old_y"))]
+  result$onStream=1
   return(result)
 }
 
@@ -342,37 +352,171 @@ addArea=function(areaName,inShpDSN,flags){
   writeDF=data.frame(name=areaName)
   newAreaIDX=writeIfNew(writeDF = writeDF, table = "Areas" ,compareNames = c("name"),idxColName ="areaIDX",write=F) 
   
-  if(!f$inEPSG==f$dbEPSG){
-    convertEPSG_area(inShpDSN,flags=f)
-  }
-  tempShape=rgdal::readOGR(dsn=inShpDSN)
-  
-  shpName=paste0(f$dbShapeName,newAreaIDX,".shp")
-  fullPathName=paste0(f$dbShapePath,shpName)
-  writeDF=data.frame(areaIDX=newAreaIDX,name=areaName,fileName=fullPathName,EPSG=f$dbEPSG)
-  
-  newAreaIDX=writeIfNew(writeDF = writeDF, table = "Areas" ,compareNames = c("name","fileName","EPSG"),idxColName ="areaIDX") 
-  
-  rgdal::writeOGR(tempShape,fullPathName,driver="ESRI Shapefile",layer="area",overwrite_layer = TRUE)
-  if(f$addMidpoint){
-    execGRASS("v.in.ogr", input=fullPathName,output="tempShape",flags=c("quiet","overwrite"))
-    addRasterIfAbsent(grassName="streamRast",rasterPath="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/streamsRast_xxl.tif")
-    #addRasterIfAbsent(grassName="UAA",rasterPath="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/flowAccum_xxl.tif")
-    execGRASS("v.centroids",input="tempShape",output="tempShapeCentroid",option="add",flags=c("overwrite","quiet"))
+  if(length(dbGetQuery(leakyDB,paste0("SELECT areaIDX FROM Areas WHERE areaIDX = '",newAreaIDX,"'"))$areaIDX)==1){ # if this area is already present in db:
     
-    #wtf
-    xy = execGRASS("v.out.ascii", input="tempShapeCentroid", type="centroid",intern=T) 
-    xy=strsplit(xy,split="|",fixed=T)
-    X=xy[[1]][1]
-    Y=xy[[1]][2]
-    
-    pointIDX=addPoint(X=X, Y=Y,flags=f)
-    newIDXs=list(areaIDX=newAreaIDX,pointIDX=pointIDX)
-    return( newIDXs )
+    if(f$addMidpoint & !(f$addPoints)){ #this area has a midpoint but NOT an otherwise defined point
+      pointIDX=dbGetQuery(leakyDB,paste0("SELECT pointIDX FROM Locations WHERE areaIDX = '",newAreaIDX,"'"))
+      newIDXs=list(areaIDX=newAreaIDX,pointIDX=pointIDX)
+      return(newIDXs)
+    } else { #this area has no midpoint
+      return(newAreaIDX)
+    }
   } else {
-    return( newAreaIDX )
-  }
+    if(!f$inEPSG==f$dbEPSG){
+      convertEPSG_area(inShpDSN,flags=f)
+      f$inEPSG=f$dbEPSG
+    }
+    tempShape=rgdal::readOGR(dsn=inShpDSN)
+    
+    shpName=paste0(f$dbShapeName,newAreaIDX,".shp")
+    fullPathName=paste0(f$dbShapePath,shpName)
+    writeDF=data.frame(areaIDX=newAreaIDX,name=areaName,fileName=fullPathName,EPSG=f$dbEPSG)
+    
+    newAreaIDX=writeIfNew(writeDF = writeDF, table = "Areas" ,compareNames = c("name","fileName","EPSG"),idxColName ="areaIDX") 
+    
+    rgdal::writeOGR(tempShape,fullPathName,driver="ESRI Shapefile",layer="area",overwrite_layer = TRUE)
+    if(f$addMidpoint){
+      execGRASS("v.in.ogr", input=fullPathName,output="tempShape",flags=c("quiet","overwrite"))
+      addRasterIfAbsent(grassName="streamRast",rasterPath="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/streamsRast_xxl.tif")
+      #addRasterIfAbsent(grassName="UAA",rasterPath="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/flowAccum_xxl.tif")
+      execGRASS("v.centroids",input="tempShape",output="tempShapeCentroid",option="add",flags=c("overwrite","quiet"))
+      
+      #wtf
+      xy = execGRASS("v.out.ascii", input="tempShapeCentroid", type="centroid",intern=T) 
+      xy=strsplit(xy,split="|",fixed=T)
+      X=xy[[1]][1]
+      Y=xy[[1]][2]
+      
+      pointIDX=addPoint(X=X, Y=Y,flags=f)
+      newIDXs=list(areaIDX=newAreaIDX,pointIDX=pointIDX)
+      return( newIDXs )
+    } else { #if !addMidpoint
+      return( newAreaIDX )
+    } 
+  } 
   
 }
+
+getCoordCount=function(subFeature){
+  return(nrow(subFeature@Lines[[1]]@coords))
+}
+
+
+createStreamSegsDF=function(){
+  library(rgeos)
+  streamSegs=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs_250m.shp")
+  #as compared to Q, the data is stored in attributes, and the attributes are stored as data
+  #field 'AUTO' is unique segment ID
+  
+  #drop segments shorter than 2 coordinate pairs
+  streamSegs=subset(streamSegs,sapply(streamSegs@lines,getCoordCount)>1)
+  
+  #for debug:
+  #streamSegs=subset(streamSegs,c(rep(T,100),rep(F,11276)))
+  
+  #Function (below) from rgeos works
+  streamSegs$length=gLength(streamSegs,byid=T)
+  
+  InitGrass_byRaster()
+  
+  writeVECT(streamSegs,vname="streamSegs",v.in.ogr_flags = "o")
+  execGRASS("v.rast.stats",map="streamSegs",raster="dem",column_prefix="elevRange",method="range")
+  streamSegs=readVECT("streamSegs")
+  streamSegs$slope=atan(streamSegs$elevRange_range/streamSegs$length) * (180/pi) #as percent
+  streamSegs$X=1
+  #hist(streamSegs$slope)
+  #looks reasonable?
+  
+  getMidpointCoords=function(singleSegment,coord="XY"){
+    mid_idx=round(length(singleSegment@Lines[[1]]@coords[,1])/2)
+    if(coord=="X"){
+      return(singleSegment@Lines[[1]]@coords[mid_idx,1])
+    }
+    if(coord=="Y"){
+      return(singleSegment@Lines[[1]]@coords[mid_idx,2])
+    }
+    if(coord=="XY"){
+      return(c(singleSegment@Lines[[1]]@coords[mid_idx,1],
+               singleSegment@Lines[[1]]@coords[mid_idx,2]))
+    }
+    
+  }
+  
+  getHeadings=function(feature,smoothScope=1){
+    getSegHeadings=function(seg,smoothScope){
+      n=nrow(seg@Lines[[1]]@coords)
+      if(n>1){
+        coordDif=seg@Lines[[1]]@coords[1,]-seg@Lines[[1]]@coords[n,]
+        thisHeading=atan2(y=coordDif[2],x=coordDif[1])
+        # for(i in 1:(nrow(seg@Lines[[1]]@coords)-1)){
+        #   coordDif=seg@Lines[[1]]@coords[(i+1),]-seg@Lines[[1]]@coords[i,]
+        #   thisHeading=atan2(y=coordDif[2],x=coordDif[1])
+      }
+      return(thisHeading)
+    }
+    
+    headings=sapply(feature@lines,getSegHeadings,smoothScope=smoothScope)
+    feature$heading_rad=headings
+    return(feature)
+  }
+  
+  streamSegs$X=sapply(streamSegs@lines,getMidpointCoords,coord="X")
+  streamSegs$Y=sapply(streamSegs@lines,getMidpointCoords,coord="Y")
+  streamSegs=getHeadings(streamSegs)
+  
+  streamSegsDF=as.data.frame(streamSegs[,c("cat","X","Y","slope","heading_rad")])
+  
+  rng=function(...){
+    mi=min(...)
+    ma=max(...)
+    return(ma-mi)
+  }
+  dem_rast=raster("C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
+  
+  streamSegsDF$elevRange_25=raster::extract(x=dem_rast,
+                                            y=streamSegsDF[,c("X","Y")],
+                                            buffer=25,
+                                            fun=rng)
+  
+  
+  streamSegsDF$elevation=raster::extract(x=dem_rast,
+                                         y=streamSegsDF[,c("X","Y")])
+  
+  getLateralElevRange=function(streamSegsDF,conf_range){
+    streamSegsDF$latRange=0
+    for(i in 1:nrow(streamSegsDF)){
+      #  tan(streamSegsDF$heading_rad[i])
+      left_y=(sin(streamSegsDF$heading_rad[i]+(pi/2))*conf_range)+streamSegsDF$Y[i]
+      left_x=(cos(streamSegsDF$heading_rad[i]+(pi/2))*conf_range)+streamSegsDF$X[i]
+      left_elev=raster::extract(x=dem_rast,y=data.frame(X=left_x,Y=left_y))
+      right_y=(sin(streamSegsDF$heading_rad[i]-(pi/2))*conf_range)+streamSegsDF$Y[i]
+      right_x=(cos(streamSegsDF$heading_rad[i]-(pi/2))*conf_range)+streamSegsDF$X[i]
+      right_elev=raster::extract(x=dem_rast,y=data.frame(X=right_x,Y=right_y))
+      streamSegsDF$latRange[i]=rng(c(left_elev,right_elev,streamSegsDF$elevation[i]))
+    }
+    return(streamSegsDF)
+  }
+  
+  streamSegsDF=getLateralElevRange(streamSegsDF,conf_range = 10)
+  names(streamSegsDF)[names(streamSegsDF)=="latRange"]="latRange_10"
+  
+  
+  streamSegsDF=getLateralElevRange(streamSegsDF,conf_range = 25)
+  names(streamSegsDF)[names(streamSegsDF)=="latRange"]="latRange_25"
+  
+  streamSegsDF=getLateralElevRange(streamSegsDF,conf_range = 50)
+  names(streamSegsDF)[names(streamSegsDF)=="latRange"]="latRange_50"
+  
+  streamSegsDF$UAA=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/flowAccum_xxl.tif"),
+                                   y=streamSegsDF[,c("X","Y")],buffer=5,fun=max)
+  streamSegsDF$SPI=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/streamPower_xxl.tif"),
+                                   y=streamSegsDF[,c("X","Y")],buffer=5,fun=max)
+  
+  streamSegsDF$UAA=streamSegsDF$UAA*(9.118818^2)
+  
+  write.csv(streamSegsDF,"StreamSegs_slope_conf_xxl.csv")
+}
+
+
 
 inWatershed=function(defPointIDX=NULL,defXY=NULL,flags,...){}
