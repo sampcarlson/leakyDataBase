@@ -65,20 +65,20 @@ pfeiffer=melt(pfeiffer,id.vars = c("Name","x","y"),measure.vars = c("gradient_de
                                                                     "fineSedPerArea","pomPerArea"),
               variable.name = "metric")
 
-name_unit_method_list=list(grad=list(old_name="gradient_deg",new_name="slope",unit="degrees",method="pfeifferFeildObs"),
-                           confRat=list(old_name="confinementRatio",new_name="confinememtRatio",unit="m m^-1", method="pfeifferFeildObs"),
-                           confCat=list(old_name="confinementCategory",new_name="confinementCategory",unit="categorical",method="pfeifferFeildObs"),
-                           basArea=list(old_name="basalArea_m2.ha",new_name="basalArea",unit="m^2 ha^-1",method="pfeifferFeildObs"),
-                           length=list(old_name="length_m",new_name="segmentLength",unit="m",method="pfeifferFeildObs"),
-                           width=list(old_name="width_m",new_name="bankfullWidth",unit="m",method="pfeifferFeildObs"),
-                           woodLod=list(old_name="woodLoad_m3",new_name="woodVol",unit="m^3",method="pfeifferFeildObs"),
-                           coarse=list(old_name="coarseSed_m3",new_name="coarseSedVol",unit="m^3",method="pfeifferFeildObs"),
-                           fine=list(old_name="fineSed_m3",new_name="fineSedVol",unit="m^3",method="pfeifferFeildObs"),
-                           pom=list(old_name="pom_m3",new_name="pomVol",unit="m^3",method="pfeifferFeildObs"),
-                           arealWood=list(old_name="woodPerArea",new_name="woodDepth",unit="m",method="pfeifferFeildObs"),
-                           arealCoarse=list(old_name="coarseSedPerArea",new_name="coarseDepth",unit="m",method="pfeifferFeildObs"),
-                           arealFine=list(old_name="fineSedPerArea",new_name="fineDepth",unit="m",method="pfeifferFeildObs"),
-                           arealPom=list(old_name="pomPerArea",new_name="pomDepth",unit="m",method="pfeifferFeildObs"))
+name_unit_method_list=list(grad=list(old_name="gradient_deg",new_name="slope",unit="degrees",method="Pfeiffer survey"),
+                           confRat=list(old_name="confinementRatio",new_name="confinememtRatio",unit="m m^-1", method="Pfeiffer survey"),
+                           confCat=list(old_name="confinementCategory",new_name="confinementCategory",unit="categorical",method="Pfeiffer survey"),
+                           basArea=list(old_name="basalArea_m2.ha",new_name="basalArea",unit="m^2 ha^-1",method="Pfeiffer survey"),
+                           length=list(old_name="length_m",new_name="segmentLength",unit="m",method="Pfeiffer survey"),
+                           width=list(old_name="width_m",new_name="bankfullWidth",unit="m",method="Pfeiffer survey"),
+                           woodLod=list(old_name="woodLoad_m3",new_name="woodVol",unit="m^3",method="Pfeiffer survey"),
+                           coarse=list(old_name="coarseSed_m3",new_name="coarseSedVol",unit="m^3",method="Pfeiffer survey"),
+                           fine=list(old_name="fineSed_m3",new_name="fineSedVol",unit="m^3",method="Pfeiffer survey"),
+                           pom=list(old_name="pom_m3",new_name="pomVol",unit="m^3",method="Pfeiffer survey"),
+                           arealWood=list(old_name="woodPerArea",new_name="woodDepth",unit="m",method="Pfeiffer survey"),
+                           arealCoarse=list(old_name="coarseSedPerArea",new_name="coarseDepth",unit="m",method="Pfeiffer survey"),
+                           arealFine=list(old_name="fineSedPerArea",new_name="fineDepth",unit="m",method="Pfeiffer survey"),
+                           arealPom=list(old_name="pomPerArea",new_name="pomDepth",unit="m",method="Pfeiffer survey"))
 
 pfeiffer=addUnitMethod(pfeiffer,name_unit_method_list)
 pfeiffer$QCStatusOK=TRUE
@@ -100,9 +100,9 @@ resp=melt(resp,id.vars=c("x","y","areaName","areaPath","dateTime"),
 resp=plyr::rename(resp,replace=c(x="X",y="Y"))
 resp$dateTime=as.Date(resp$dateTime)
 
-name_unit_method_list=list(temp=list(old_name="Temperature",new_name="temperature",unit="deg C", method = "bob met survey"),
-                           gpp=list(old_name="GPP",new_name="GPP",unit="mmol O2 m^-2 day^-1", method = "bob met survey"),
-                           er=list(old_name="ER",new_name="ER",unit="mmol O2 m^-2 day^-1", method = "bob met survey"))
+name_unit_method_list=list(temp=list(old_name="Temperature",new_name="temperature",unit="deg C", method = "Bob metab survey"),
+                           gpp=list(old_name="GPP",new_name="GPP",unit="mmol O2 m^-2 day^-1", method = "Bob metab survey"),
+                           er=list(old_name="ER",new_name="ER",unit="mmol O2 m^-2 day^-1", method = "Bob metab survey"))
 resp=addUnitMethod(resp,name_unit_method_list)
 resp$QCStatusOK=T
 addData(resp,
@@ -134,10 +134,10 @@ name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",un
                            conf=list(old_name="NEW.Confinement",new_name="confinement",unit="categorical",method="Bridget morphology survey"),
                            vw=list(old_name="Mean.valley.width",new_name="valleyWidth",unit="m",method="Bridget morphology survey"),
                            cw=list(old_name="Mean.width.of.ind..Channel",new_name="bankfullWidth",unit="m",method="Bridget morphology survey"),
-                           tcw=list(old_name="Mean.total.width..m",new_name="totalBankfullWidth",unit="m",method="Bridget morphology survey"),
+                           tcw=list(old_name="Mean.total.width..m.",new_name="totalBankfullWidth",unit="m",method="Bridget morphology survey"),
                            pjp=list(old_name="Proportion.jams.with.pools",new_name="jamPoolProportion",unit="jamPools/jam",method="Bridget morphology survey"),
                            jam=list(old_name="Jams",new_name="jamCount",unit="count",method="Bridget morphology survey"),
-                           len=list(old_name="Length..m",new_name="segmentLength",unit="m",method="Bridget morphology survey"),
+                           len=list(old_name="Length..m.",new_name="segmentLength",unit="m",method="Bridget morphology survey"),
                            wva=list(old_name="WoodVolPerArea",new_name="woodDepth",unit="m",method="Bridget morphology survey"),
                            chc=list(old_name="meanNumberOfChannels",new_name="multiChannelCount",unit="count",method="Bridget morphology survey"),
                            jpk=list(old_name="JamsPerKmChannel",new_name="jamsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
@@ -152,4 +152,27 @@ addData(morph,
         streamSnapDistCells=50)
 
 
-################------------add regularly spaced points, then add dem-derived data to every point in the database-----------------#############
+################------------add points representing every 1/4 km reach w/ reach slope data-----------------#############
+#go have lunch & a beer or two - this takes a while
+#createStreamSegsDF()
+
+segs=read.csv("StreamSegs_slope_conf_xxl.csv")
+segs=melt(segs,id.vars=c("cat","X","Y"),
+          measure.vars = c("slope","heading_rad","elevRange_25","elevation","latRange_10","latRange_25","latRange_50","UAA","SPI"),
+          variable.name = "metric")
+name_unit_method_list=list(slope=list(old_name="slope",new_name="slope",unit="degrees",method="derived from DEM"),
+                                hea=list(old_name="heading_rad",new_name="azimuth",unit="radians",method="derived from DEM"),
+                                er=list(old_name="elevRange_25",new_name="elevRange_25",unit="m",method="derived from DEM"),
+                                elev=list(old_name="elevation",new_name="elevation",unit="m",method="derived from DEM"),
+                                l1=list(old_name="latRange_10",new_name="latRange_10",unit="meters",method="derived from DEM"),
+                                l2=list(old_name="latRange_25",new_name="latRange_25",unit="meters",method="derived from DEM"),
+                                l5=list(old_name="latRange_50",new_name="latRange_50",unit="meters",method="derived from DEM"),
+                                ua=list(old_name="UAA",new_name="UAA",unit="meters",method="derived from DEM"),
+                                spi=list(old_name="SPI",new_name="SPI",unit="index",method="derived from DEM"))
+segs=addUnitMethod(segs,name_unit_method_list)
+
+segs$dateTime=as.Date("2018/12/1")
+segs$QCStatusOK=T
+addData(segs,
+        batchName = "DEM derived metrics calculated by Sam",
+        batchSource="createStreamSegsDF()")

@@ -403,7 +403,13 @@ getCoordCount=function(subFeature){
 
 
 createStreamSegsDF=function(){
+  c=2 #number of cores to use in parallel
   library(rgeos)
+  library(raster)
+  library(parallel)
+  library(snow)
+  
+  print("load stream segs shape...")
   streamSegs=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs_250m.shp")
   #as compared to Q, the data is stored in attributes, and the attributes are stored as data
   #field 'AUTO' is unique segment ID
@@ -413,14 +419,17 @@ createStreamSegsDF=function(){
   
   #for debug:
   #streamSegs=subset(streamSegs,c(rep(T,100),rep(F,11276)))
-  
+  print("get seg length...")
   #Function (below) from rgeos works
   streamSegs$length=gLength(streamSegs,byid=T)
   
   InitGrass_byRaster()
   
+  print("write to grass../")
   writeVECT(streamSegs,vname="streamSegs",v.in.ogr_flags = "o")
+  print("sample elev range...")
   execGRASS("v.rast.stats",map="streamSegs",raster="dem",column_prefix="elevRange",method="range")
+  print("read & calc slope...")
   streamSegs=readVECT("streamSegs")
   streamSegs$slope=atan(streamSegs$elevRange_range/streamSegs$length) * (180/pi) #as percent
   streamSegs$X=1
@@ -459,62 +468,82 @@ createStreamSegsDF=function(){
     feature$heading_rad=headings
     return(feature)
   }
-  
+  print("calculate midpoints...")
   streamSegs$X=sapply(streamSegs@lines,getMidpointCoords,coord="X")
   streamSegs$Y=sapply(streamSegs@lines,getMidpointCoords,coord="Y")
+  print("calc headings...")
   streamSegs=getHeadings(streamSegs)
   
   streamSegsDF=as.data.frame(streamSegs[,c("cat","X","Y","slope","heading_rad")])
   
   rng=function(...){
-    mi=min(...)
-    ma=max(...)
+    mi=min(... ,na.rm = T)
+    ma=max(... ,na.rm = T)
     return(ma-mi)
   }
   dem_rast=raster("C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
-  
+  print("sample elev range around midpoints...")
+  beginCluster(n=c)
   streamSegsDF$elevRange_25=raster::extract(x=dem_rast,
                                             y=streamSegsDF[,c("X","Y")],
                                             buffer=25,
-                                            fun=rng)
+                                            fun=rng, na.rm=T)
+  endCluster()
   
-  
+  print("sample elevation")
   streamSegsDF$elevation=raster::extract(x=dem_rast,
                                          y=streamSegsDF[,c("X","Y")])
   
   getLateralElevRange=function(streamSegsDF,conf_range){
-    streamSegsDF$latRange=0
-    for(i in 1:nrow(streamSegsDF)){
-      #  tan(streamSegsDF$heading_rad[i])
-      left_y=(sin(streamSegsDF$heading_rad[i]+(pi/2))*conf_range)+streamSegsDF$Y[i]
-      left_x=(cos(streamSegsDF$heading_rad[i]+(pi/2))*conf_range)+streamSegsDF$X[i]
-      left_elev=raster::extract(x=dem_rast,y=data.frame(X=left_x,Y=left_y))
-      right_y=(sin(streamSegsDF$heading_rad[i]-(pi/2))*conf_range)+streamSegsDF$Y[i]
-      right_x=(cos(streamSegsDF$heading_rad[i]-(pi/2))*conf_range)+streamSegsDF$X[i]
-      right_elev=raster::extract(x=dem_rast,y=data.frame(X=right_x,Y=right_y))
-      streamSegsDF$latRange[i]=rng(c(left_elev,right_elev,streamSegsDF$elevation[i]))
+    
+    calcLatCoords=function(segDF,thisRange){
+      left_y=(sin(segDF$heading_rad+(pi/2))*thisRange)+segDF$Y
+      left_x=(cos(segDF$heading_rad+(pi/2))*thisRange)+segDF$X
+      right_y=(sin(segDF$heading_rad-(pi/2))*thisRange)+segDF$Y
+      right_x=(cos(segDF$heading_rad-(pi/2))*thisRange)+segDF$X
+      return(list(left_y=left_y,left_x=left_x,right_y=right_y,right_x=right_x))
     }
-    return(streamSegsDF)
+    
+    latCoords=calcLatCoords(streamSegsDF,conf_range)
+    beginCluster(n=c) #not as intensive as the buffered extraction above, but still benefits from parallel
+    left_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))
+    right_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))
+    endCluster()
+    latRange=mapply(rng,left_elev,right_elev,streamSegsDF$elevation)
+    
+    
+    return(latRange)
   }
   
-  streamSegsDF=getLateralElevRange(streamSegsDF,conf_range = 10)
-  names(streamSegsDF)[names(streamSegsDF)=="latRange"]="latRange_10"
+  print("sample lat range 10...")
+  streamSegsDF$latRange_10=getLateralElevRange(streamSegsDF,conf_range = 10)
   
+  print("sample lat range 25...")
+  streamSegsDF$latRange_25=getLateralElevRange(streamSegsDF,conf_range = 25)
   
-  streamSegsDF=getLateralElevRange(streamSegsDF,conf_range = 25)
-  names(streamSegsDF)[names(streamSegsDF)=="latRange"]="latRange_25"
+  print("sample lat range 50...")
+  streamSegsDF$latRange_50=getLateralElevRange(streamSegsDF,conf_range = 50)
   
-  streamSegsDF=getLateralElevRange(streamSegsDF,conf_range = 50)
-  names(streamSegsDF)[names(streamSegsDF)=="latRange"]="latRange_50"
-  
+  naMax=function(...){
+    return(max(..., na.rm=T))
+  }
+  #removed from sample:
+  #,buffer=5,fun=naMax, na.rm=T
+  #beginCluster(n=c)
+  print("sample UAA...")
   streamSegsDF$UAA=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/flowAccum_xxl.tif"),
-                                   y=streamSegsDF[,c("X","Y")],buffer=5,fun=max)
+                                   y=streamSegsDF[,c("X","Y")])
+  #endCluster()
+  #beginCluster(n=c)
+  print("sample SPI...")
   streamSegsDF$SPI=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/streamPower_xxl.tif"),
-                                   y=streamSegsDF[,c("X","Y")],buffer=5,fun=max)
+                                   y=streamSegsDF[,c("X","Y")])
+  #endCluster()
   
   streamSegsDF$UAA=streamSegsDF$UAA*(9.118818^2)
-  
+  print("write & done!")
   write.csv(streamSegsDF,"StreamSegs_slope_conf_xxl.csv")
+  return("BOO!")
 }
 
 
