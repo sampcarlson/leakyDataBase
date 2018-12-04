@@ -173,6 +173,7 @@ getNewIDX=function(table,idxColName){
   } else {
     newIDX=maxIDX+1
   }
+  return(newIDX)
 }
 
 writeIfNew=function(writeDF,table,compareNames,idxColName,write=T,compare=T){    #works with 1-row writeDF only at the moment...
@@ -401,7 +402,6 @@ getCoordCount=function(subFeature){
   return(nrow(subFeature@Lines[[1]]@coords))
 }
 
-
 createStreamSegsDF=function(){
   c=2 #number of cores to use in parallel
   library(rgeos)
@@ -410,7 +410,7 @@ createStreamSegsDF=function(){
   library(snow)
   
   print("load stream segs shape...")
-  streamSegs=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs_250m.shp")
+  streamSegs=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs.shp")
   #as compared to Q, the data is stored in attributes, and the attributes are stored as data
   #field 'AUTO' is unique segment ID
   
@@ -546,6 +546,81 @@ createStreamSegsDF=function(){
   return("BOO!")
 }
 
+inWatershed=function(watershedIDs){
+  
+  allPoints=dbGetQuery(leakyDB,"SELECT Locations.LocationIDX, Locations.PointIDX, Points.X, Points.Y FROM Locations LEFT JOIN Points ON Locations.PointIDX = Points.PointIDX WHERE Locations.isPoint = '1' AND Locations.watershedID = 'not assigned'")
+  writeVECT(SDF=sp::SpatialPointsDataFrame(coords=allPoints[,c("X","Y")],data=allPoints[,c("locationIDX","pointIDX")]),
+            vname="allPoints",v.in.ogr_flags = c("o","overwrite","quiet"))
+  
+  for(watershedID in watershedIDs){  
+    w_area_path=dbGetQuery(leakyDB,paste0("SELECT fileName FROM Areas LEFT JOIN Watersheds ON Areas.areaIDX = Watersheds.areaIDX WHERE Watersheds.watershedID = '",watershedID,"'"))$fileName
+    execGRASS("v.in.ogr",input=w_area_path,output="watershedArea",flags=c("overwrite","quiet"))
+    execGRASS("v.select",ainput="allPoints",binput="watershedArea",output="ptsInWshed",operator="overlap",flags=c("overwrite","quiet"))
+    locIdxInWshed=grassTableToDF( execGRASS("v.db.select",map="ptsInWshed",intern = T) )$locationIDX
+    if(length(locIdxInWshed)>0){
+      dbExecute(leakyDB,paste0("UPDATE Locations SET watershedID = '",watershedID,"' WHERE locationIDX IN (",paste(locIdxInWshed,collapse = ", "),")"))
+    }
+  }
+}
 
-
-inWatershed=function(defPointIDX=NULL,defXY=NULL,flags,...){}
+characterizeAreas=function(areasBatchName,addDTs,newBatchName){
+  #add new data types for mean data
+  oldDTs=dbGetQuery(leakyDB,paste0("SELECT * FROM DataTypes WHERE DataTypes.dataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
+  newDTs=data.frame(oldIDX=oldDTs$dataTypeIDX,newIDX=seq(from=getNewIDX("DataTypes","dataTypeIDX"),by=1,length.out = length(oldDTs$dataTypeIDX)))
+  newDTs$metric=paste0("mean_",oldDTs$metric)
+  newDTs$unit=oldDTs$unit
+  newDTs$method=paste("mean of dataTypeIDX",newDTs$oldIDX)
+  newDTs$dataTypeIDX=newDTs$newIDX
+  writeDF=newDTs[,c("dataTypeIDX","metric","unit","method")]
+  #this is stupid, but oh well...
+  for(i in 1:nrow(writeDF)){
+    writeIfNew(writeDF[i,],"DataTypes",compareNames = c("metric","unit","method"),idxColName="dataTypeIDX")
+  }
+  #add batch
+  batchIDX=addBatch(newBatchName,"characterizeAreas()")
+  
+  aggMeanFun=function(x){
+    if(is.numeric(x)){
+      return(mean(x,na.rm=T))
+    } else {
+      return (x[1])
+    }
+  }
+  
+  areaPaths=dbGetQuery(leakyDB,paste0("SELECT DISTINCT Areas.fileName FROM Areas LEFT JOIN Locations ON Areas.areaIDX = Locations.areaIDX
+                                      LEFT JOIN Data ON Locations.LocationIDX = Data.LocationIDX
+                                      LEFT JOIN Batches ON Data.batchIDX = Batches.batchIDX
+                                      WHERE Batches.batchName = '",areasBatchName,"'"))$fileName
+  
+  allPoints=dbGetQuery(leakyDB,"SELECT Locations.LocationIDX, Locations.PointIDX, Points.X, Points.Y FROM Locations LEFT JOIN Points ON Locations.PointIDX = Points.PointIDX")
+  writeVECT(SDF=sp::SpatialPointsDataFrame(coords=allPoints[,c("X","Y")],data=allPoints[,c("locationIDX","pointIDX")]),
+            vname="allPoints",v.in.ogr_flags = c("o","overwrite","quiet"))
+  
+  for(areaPath in areaPaths){
+    execGRASS("v.in.ogr",input=areaPath,output="thisArea",flags=c("overwrite","quiet"))
+    execGRASS("v.select",ainput="allPoints",binput="thisArea",output="ptsInArea",operator="overlap",flags=c("overwrite","quiet"))
+    locIDXs=grassTableToDF( execGRASS("v.db.select",map="ptsInArea",intern = T) )$locationIDX
+    
+    locData=dbGetQuery(leakyDB,paste0("SELECT * FROM Data WHERE locationIDX IN (",paste(locIDXs,collapse=", "),") AND DataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
+    
+    if(nrow(locData)>1){
+      
+      locData$value=as.numeric(as.character(locData$value))
+      locData=plyr::rename(locData,replace=c("dataTypeIDX"="oldDataTypeIDX","dataIDX"="oldDataIDX"))
+      #aggregate
+      locData=aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX,thisLoc=locData$locationIDX),FUN=aggMeanFun)
+      
+      #join to new data types
+      locData=left_join(locData,newDTs[,c("oldIDX","newIDX")],by=c("oldDataTypeIDX"="oldIDX"))
+      locData$dataTypeIDX=locData$newIDX
+      #write to DB
+      locData$dataIDX=seq(from=getNewIDX("Data","dataIDX"),by=1,length.out=length(locData$dtIDX))
+      newData=locData[,c("dataIDX","dataTypeIDX","locationIDX","dateTime","value","QCStatusOK")]
+      newData$batchIDX=batchIDX
+      #this is stupid, but oh well...
+      for(i in 1:nrow(newData)){
+        writeIfNew(newData[i,],"Data",compareNames = c("locationIDX"),idxColName="dataIDX",compare = F)
+      }
+    }
+  }
+}

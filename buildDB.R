@@ -5,8 +5,12 @@ library(reshape2)
 library(rgrass7)
 source("dbTools.R")
 source("C:/Users/sam/Documents/R/projects/rGrassTools/grassTools.r")
-
+source('~/R/projects/leakyDataBase/dbTools.R')
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
+
+#rebuild stream network info - very long process w/ shorter seg lengths
+buildHugeStreamNetwork(segLength=100)
+
 #set all defaults
 defaultFlags=list(inEPSG=32613,
                   dbEPSG=32613,
@@ -154,7 +158,7 @@ addData(morph,
 
 ################------------add points representing every 1/4 km reach w/ reach slope data-----------------#############
 #go have lunch & a beer or two - this takes a while
-#createStreamSegsDF()
+createStreamSegsDF()
 
 segs=read.csv("StreamSegs_slope_conf_xxl.csv")
 segs=melt(segs,id.vars=c("cat","X","Y"),
@@ -176,3 +180,11 @@ segs$QCStatusOK=T
 addData(segs,
         batchName = "DEM derived metrics calculated by Sam",
         batchSource="createStreamSegsDF()")
+
+###############----------add watershedID to locations---------------------################
+inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watersheds")$watershedID)
+
+###############----------add DEM derived characteristics to morph survey areas
+
+dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=38:46,newBatchName="mean of DEM derived vars")
