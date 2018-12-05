@@ -566,16 +566,16 @@ inWatershed=function(watershedIDs){
 characterizeAreas=function(areasBatchName,addDTs,newBatchName){
   #add new data types for mean data
   oldDTs=dbGetQuery(leakyDB,paste0("SELECT * FROM DataTypes WHERE DataTypes.dataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
-  newDTs=data.frame(oldIDX=oldDTs$dataTypeIDX,newIDX=seq(from=getNewIDX("DataTypes","dataTypeIDX"),by=1,length.out = length(oldDTs$dataTypeIDX)))
+  newDTs=data.frame(oldIDX=oldDTs$dataTypeIDX)
   newDTs$metric=paste0("mean_",oldDTs$metric)
   newDTs$unit=oldDTs$unit
   newDTs$method=paste("mean of dataTypeIDX",newDTs$oldIDX)
-  newDTs$dataTypeIDX=newDTs$newIDX
-  writeDF=newDTs[,c("dataTypeIDX","metric","unit","method")]
+  newDTs$newIDX=0
   #this is stupid, but oh well...
-  for(i in 1:nrow(writeDF)){
-    writeIfNew(writeDF[i,],"DataTypes",compareNames = c("metric","unit","method"),idxColName="dataTypeIDX")
+  for(i in 1:nrow(newDTs)){
+    newDTs$newIDX[i]=writeIfNew(newDTs[i,],"DataTypes",compareNames = c("metric","unit","method"),idxColName="dataTypeIDX")
   }
+  
   #add batch
   batchIDX=addBatch(newBatchName,"characterizeAreas()")
   
@@ -604,8 +604,6 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
     locData=dbGetQuery(leakyDB,paste0("SELECT * FROM Data WHERE locationIDX IN (",paste(locIDXs,collapse=", "),") AND DataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
     
     if(nrow(locData)>1){
-      
-      locData$value=as.numeric(as.character(locData$value))
       locData=plyr::rename(locData,replace=c("dataTypeIDX"="oldDataTypeIDX","dataIDX"="oldDataIDX"))
       #aggregate
       locData=aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX,thisLoc=locData$locationIDX),FUN=aggMeanFun)
