@@ -587,16 +587,17 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
     }
   }
   
-  areaPaths=dbGetQuery(leakyDB,paste0("SELECT DISTINCT Areas.fileName FROM Areas LEFT JOIN Locations ON Areas.areaIDX = Locations.areaIDX
+  areaInfo=dbGetQuery(leakyDB,paste0("SELECT DISTINCT Areas.fileName, Locations.LocationIDX FROM Areas LEFT JOIN Locations ON Areas.areaIDX = Locations.areaIDX
                                       LEFT JOIN Data ON Locations.LocationIDX = Data.LocationIDX
                                       LEFT JOIN Batches ON Data.batchIDX = Batches.batchIDX
-                                      WHERE Batches.batchName = '",areasBatchName,"'"))$fileName
+                                      WHERE Batches.batchName = '",areasBatchName,"'"))
   
   allPoints=dbGetQuery(leakyDB,"SELECT Locations.LocationIDX, Locations.PointIDX, Points.X, Points.Y FROM Locations LEFT JOIN Points ON Locations.PointIDX = Points.PointIDX")
   writeVECT(SDF=sp::SpatialPointsDataFrame(coords=allPoints[,c("X","Y")],data=allPoints[,c("locationIDX","pointIDX")]),
             vname="allPoints",v.in.ogr_flags = c("o","overwrite","quiet"))
   
-  for(areaPath in areaPaths){
+  for(areaPath in areaInfo$fileName){
+    thisLocation=areaInfo$locationIDX[areaInfo$fileName==areaPath]
     execGRASS("v.in.ogr",input=areaPath,output="thisArea",flags=c("overwrite","quiet"))
     execGRASS("v.select",ainput="allPoints",binput="thisArea",output="ptsInArea",operator="overlap",flags=c("overwrite","quiet"))
     locIDXs=grassTableToDF( execGRASS("v.db.select",map="ptsInArea",intern = T) )$locationIDX
@@ -606,11 +607,12 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
     if(nrow(locData)>1){
       locData=plyr::rename(locData,replace=c("dataTypeIDX"="oldDataTypeIDX","dataIDX"="oldDataIDX"))
       #aggregate
-      locData=aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX,thisLoc=locData$locationIDX),FUN=aggMeanFun)
-      
+      locData=aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX),FUN=aggMeanFun)
+      locData$locationIDX=thisLocation
       #join to new data types
       locData=left_join(locData,newDTs[,c("oldIDX","newIDX")],by=c("oldDataTypeIDX"="oldIDX"))
       locData$dataTypeIDX=locData$newIDX
+      
       #write to DB
       locData$dataIDX=seq(from=getNewIDX("Data","dataIDX"),by=1,length.out=length(locData$dtIDX))
       newData=locData[,c("dataIDX","dataTypeIDX","locationIDX","dateTime","value","QCStatusOK")]
