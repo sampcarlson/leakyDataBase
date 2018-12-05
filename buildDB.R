@@ -99,7 +99,7 @@ addData(pfeiffer,
 
 ############--------------bob resp data---------------######
 resp=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/resp/bob_respRates_simpleSites.csv",colClasses="character")
-resp$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/resp/",resp$areaName,".shp")
+resp$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/resp/respShapes/",resp$areaName,".shp")
 resp=melt(resp,id.vars=c("x","y","areaName","areaPath","dateTime"),
           measure.vars=c("Temperature","GPP","ER"),
           variable.name="metric")
@@ -122,7 +122,7 @@ addData(resp,
 morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/Geomorph_sites_and_data_bridget.csv")
 morph=morph[,c("Treatment","Reach","Network","NEW.Confinement","Mean.valley.width","Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools","Jams","Length..m.","WoodVolPerArea","Up.Y","Up.X","Down.Y","Down.X")]
 morph$areaName=morph$Reach
-morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/shapes/",morph$areaName,".shp")
+morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphShapes/",morph$areaName,".shp")
 
 morph$meanNumberOfChannels=morph$Mean.total.width..m./morph$Mean.width.of.ind..Channel
 morph$JamsPerKmChannel=morph$Jams * (1000/morph$Length..m.) / morph$meanNumberOfChannels
