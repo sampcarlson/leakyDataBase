@@ -41,7 +41,7 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
     f$addAreas=T
     f$addPoints=T
     f$addMidpoint=F
-    print("Adding areas and points...")
+    print("Adding areas and points:")
     if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
       stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method, areaName"))
     } else{
@@ -52,10 +52,10 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
     f$addAreas=T
     f$addPoints=F
     if(f$addMidpoint){
-      print("Adding areas and midpoints...")
+      print("Adding areas and midpoints:")
     }
     if(!f$addMidpoint){
-      print("Adding areas...")
+      print("Adding areas:")
     }
     if(!all( c("dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
       stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method, areaName"))
@@ -66,7 +66,7 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   } else {
     f$addPoints=T
     f$addAreas=F
-    print("Adding points...")
+    print("Adding points:")
     if(!all( c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method") %in% names(dataDF) )){
       stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method"))
     } else{
@@ -573,7 +573,7 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
   newDTs$newIDX=0
   #this is stupid, but oh well...
   for(i in 1:nrow(newDTs)){
-    newDTs$newIDX[i]=writeIfNew(newDTs[i,],"DataTypes",compareNames = c("metric","unit","method"),idxColName="dataTypeIDX")
+    newDTs$newIDX[i]=writeIfNew(newDTs[i,c("metric","unit","method")],"DataTypes",compareNames = c("metric","unit","method"),idxColName="dataTypeIDX")
   }
   
   #add batch
