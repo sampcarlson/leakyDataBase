@@ -11,7 +11,7 @@ source('~/R/projects/leakyDataBase/BuildHugeStreamNetwork.R')
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
 
 #rebuild stream network info - very long process w/ shorter seg lengths
-#buildHugeStreamNetwork(segLength=100)
+buildHugeStreamNetwork(segLength=100)
 
 #set all defaults
 defaultFlags=list(inEPSG=32613,
@@ -160,7 +160,7 @@ addData(morph,
 
 ################------------add points representing every 1/4 km reach w/ reach slope data-----------------#############
 #go have lunch & a beer or two - this takes a while
-#createStreamSegsDF()
+createStreamSegsDF()
 
 segs=read.csv("StreamSegs_slope_conf_xxl.csv")
 segs=melt(segs,id.vars=c("cat","X","Y"),

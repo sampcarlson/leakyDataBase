@@ -476,19 +476,19 @@ createStreamSegsDF=function(){
   
   streamSegsDF=as.data.frame(streamSegs[,c("cat","X","Y","slope","heading_rad")])
   
-  rng=function(...){
-    mi=min(... ,na.rm = T)
-    ma=max(... ,na.rm = T)
+  rng=function(x){
+    mi=min(x,na.rm = T)
+    ma=max(x,na.rm = T)
     return(ma-mi)
   }
   dem_rast=raster("C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
   print("sample elev range around midpoints...")
-  beginCluster(n=c)
+  #beginCluster(n=c)
   streamSegsDF$elevRange_25=raster::extract(x=dem_rast,
                                             y=streamSegsDF[,c("X","Y")],
-                                            buffer=25,
+                                            buffer=30,
                                             fun=rng, na.rm=T)
-  endCluster()
+  #endCluster()
   
   print("sample elevation")
   streamSegsDF$elevation=raster::extract(x=dem_rast,
@@ -505,10 +505,10 @@ createStreamSegsDF=function(){
     }
     
     latCoords=calcLatCoords(streamSegsDF,conf_range)
-    beginCluster(n=c) #not as intensive as the buffered extraction above, but still benefits from parallel
+    #beginCluster(n=c) #not as intensive as the buffered extraction above, but still benefits from parallel
     left_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))
     right_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))
-    endCluster()
+    #endCluster()
     latRange=mapply(rng,left_elev,right_elev,streamSegsDF$elevation)
     
     
@@ -531,13 +531,14 @@ createStreamSegsDF=function(){
   #,buffer=5,fun=naMax, na.rm=T
   #beginCluster(n=c)
   print("sample UAA...")
+  #add buffer to ensure stream-representitive value
   streamSegsDF$UAA=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/flowAccum_xxl.tif"),
-                                   y=streamSegsDF[,c("X","Y")])
+                                   y=streamSegsDF[,c("X","Y")],buffer=15)
   #endCluster()
   #beginCluster(n=c)
   print("sample SPI...")
   streamSegsDF$SPI=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/streamPower_xxl.tif"),
-                                   y=streamSegsDF[,c("X","Y")])
+                                   y=streamSegsDF[,c("X","Y")],buffer=15)
   #endCluster()
   
   streamSegsDF$UAA=streamSegsDF$UAA*(9.118818^2)

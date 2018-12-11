@@ -7,7 +7,7 @@ buildHugeStreamNetwork=function(segLength=250){
   InitGrass_byRaster(rasterPath="C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
   
   #threshold is in cells, not m^2!!!!
-  execGRASS("r.watershed",elevation="dem@PERMANENT",threshold=5000,convergence=9,drainage="flowDir_xxl",stream="streams_rast",spi="streamPower",accumulation="flowAccum_xxl", flags=c("overwrite", "a"))
+  execGRASS("r.watershed",elevation="dem@PERMANENT",threshold=5000,convergence=10,drainage="flowDir_xxl",stream="streams_rast",spi="streamPower",accumulation="flowAccum_xxl", flags=c("overwrite", "a"))
   execGRASS("r.thin",input="streams_rast",output="streams_rast",flags="overwrite")
   execGRASS("r.to.vect",input="streams_rast",output="streams_vect",type="line",flags="overwrite")
   execGRASS("v.split",input="streams_vect",output="streamSegs_vect",length=250,flags="overwrite")
