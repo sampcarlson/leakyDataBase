@@ -414,11 +414,11 @@ createStreamSegsDF=function(){
   #as compared to Q, the data is stored in attributes, and the attributes are stored as data
   #field 'AUTO' is unique segment ID
   
-  #drop segments shorter than 2 coordinate pairs
-  streamSegs=subset(streamSegs,sapply(streamSegs@lines,getCoordCount)>1)
+  #drop segments shorter than 3 coordinate pairs
+  streamSegs=subset(streamSegs,sapply(streamSegs@lines,getCoordCount)>2)
   
   #for debug:
-  #streamSegs=subset(streamSegs,c(rep(T,100),rep(F,11276)))
+  #streamSegs=subset(streamSegs,c(rep(T,100),rep(F,10455)))
   print("get seg length...")
   #Function (below) from rgeos works
   streamSegs$length=gLength(streamSegs,byid=T)
@@ -476,19 +476,19 @@ createStreamSegsDF=function(){
   
   streamSegsDF=as.data.frame(streamSegs[,c("cat","X","Y","slope","heading_rad")])
   
-  rng=function(x){
-    mi=min(x,na.rm = T)
-    ma=max(x,na.rm = T)
+  rng=function(...){
+    mi=min(...,na.rm = T)
+    ma=max(...,na.rm = T)
     return(ma-mi)
   }
   dem_rast=raster("C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
   print("sample elev range around midpoints...")
-  #beginCluster(n=c)
+  beginCluster(n=c)
   streamSegsDF$elevRange_25=raster::extract(x=dem_rast,
                                             y=streamSegsDF[,c("X","Y")],
-                                            buffer=30,
-                                            fun=rng, na.rm=T)
-  #endCluster()
+                                            buffer=25,
+                                            fun=rng)
+  endCluster()
   
   print("sample elevation")
   streamSegsDF$elevation=raster::extract(x=dem_rast,
@@ -531,17 +531,19 @@ createStreamSegsDF=function(){
   #,buffer=5,fun=naMax, na.rm=T
   #beginCluster(n=c)
   print("sample UAA...")
-  #add buffer to ensure stream-representitive value
+  #add buffer to ensure stream-representitive value  !!! Nope, change to sfd in r.watershed instead
   streamSegsDF$UAA=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/flowAccum_xxl.tif"),
-                                   y=streamSegsDF[,c("X","Y")],buffer=15)
+                                   y=streamSegsDF[,c("X","Y")])
   #endCluster()
   #beginCluster(n=c)
   print("sample SPI...")
   streamSegsDF$SPI=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/streamPower_xxl.tif"),
-                                   y=streamSegsDF[,c("X","Y")],buffer=15)
+                                   y=streamSegsDF[,c("X","Y")])
   #endCluster()
   
-  streamSegsDF$UAA=streamSegsDF$UAA*(9.118818^2)
+  
+  streamSegsDF$UAA=streamSegsDF$UAA*(9.118818^2)/(1000^2)
+  
   print("write & done!")
   write.csv(streamSegsDF,"StreamSegs_slope_conf_xxl.csv")
   return("BOO!")
@@ -621,6 +623,51 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
       #this is stupid, but oh well...
       for(i in 1:nrow(newData)){
         writeIfNew(newData[i,],"Data",compareNames = c("locationIDX"),idxColName="dataIDX",compare = F)
+      }
+    }
+  }
+}
+
+characterizePointsByAreas=function(pointsBatch,dataTypesToAdd){
+  batchIDX=addBatch("area characteristics","characterizePointsByAreas()")
+  
+  
+  #add all points to GRASS
+  locIDXs=dbGetQuery(leakyDB, paste0("SELECT DISTINCT Data.locationIDX FROM Data WHERE Data.batchIDX = '",pointsBatch,"'"))$locationIDX
+  pointDF=dbGetQuery(leakyDB,paste0("SELECT Locations.locationIDX, Points.X, Points.Y FROM Locations LEFT JOIN Points ON Locations.pointIDX = Points.PointIDX
+                                    WHERE Locations.locationIDX IN (",paste(locIDXs,collapse=", "),")"))
+  
+  writeVECT(SDF=SpatialPointsDataFrame(coords=pointDF[,c("X","Y")],data=data.frame(locationIDX = pointDF$locationIDX)),
+            vname="allPoints",v.in.ogr_flags = c("o","overwrite","quiet"))
+  
+  #get DF of all areas
+  areasDF=dbGetQuery(leakyDB,paste0("SELECT DISTINCT Areas.areaIDX, Areas.fileName FROM Areas LEFT JOIN Locations ON Areas.areaIDX = Locations.areaIDX 
+                                    LEFT JOIN Data ON Locations.locationIDX = Data.locationIDX WHERE Data.dataTypeIDX IN (",paste(dataTypesToAdd,collapse=", "),")"))
+  
+  #iterate through areas, adding each area, identifying points within the area, and adding data to points by Data.locationIDX
+  for(i in 1:nrow(areasDF)){
+    thisAreaIDX=areasDF$areaIDX[i]
+    thisAreaPath=areasDF$fileName[i]
+    execGRASS("v.in.ogr",input=thisAreaPath,output="thisArea",flags=c("overwrite","quiet"))
+    execGRASS("v.select",ainput="allPoints",binput="thisArea",output="ptsInArea",operator="overlap",flags=c("overwrite","quiet"))
+    thisLocIDXs=grassTableToDF( execGRASS("v.db.select",map="ptsInArea",intern = T) )$locationIDX
+    
+    if(length(thisLocIDXs>0)){
+      #get relevant data associated with area
+      thisAreaData=dbGetQuery(leakyDB,paste0("SELECT Data.dataTypeIDX, Data.value, Data.dateTime, Data.QCStatusOK FROM DATA
+                                LEFT JOIN Locations ON Data.locationIDX = Locations.LocationIDX
+                                WHERE Locations.areaIDX = '",thisAreaIDX,"'"))
+      thisAreaData=thisAreaData[thisAreaData$dataTypeIDX %in% dataTypesToAdd,]
+      thisAreaData$batchIDX=batchIDX
+      if(nrow(thisAreaData)>0){
+        
+        for(thisLocIDX in thisLocIDXs){
+          thisAreaData$locationIDX=thisLocIDX
+          for(j in 1:nrow(thisAreaData)){
+            dataID=writeIfNew(thisAreaData[j,],"Data",compareNames = c("locationIDX"),idxColName="dataIDX",compare = F)
+          }
+        }
+        
       }
     }
   }

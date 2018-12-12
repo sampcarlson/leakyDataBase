@@ -10,7 +10,7 @@ source('~/R/projects/leakyDataBase/BuildHugeStreamNetwork.R')
 
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
 
-#rebuild stream network info - very long process w/ shorter seg lengths
+#rebuild stream network info - long process w/ shorter seg lengths
 buildHugeStreamNetwork(segLength=100)
 
 #set all defaults
@@ -158,7 +158,7 @@ addData(morph,
         streamSnapDistCells=50)
 
 
-################------------add points representing every 1/4 km reach w/ reach slope data-----------------#############
+################------------add points representing every 100 m reach w/ reach slope data-----------------#############
 #go have lunch & a beer or two - this takes a while
 createStreamSegsDF()
 
@@ -173,7 +173,7 @@ name_unit_method_list=list(slope=list(old_name="slope",new_name="slope",unit="de
                                 l1=list(old_name="latRange_10",new_name="latRange_10",unit="meters",method="derived from DEM"),
                                 l2=list(old_name="latRange_25",new_name="latRange_25",unit="meters",method="derived from DEM"),
                                 l5=list(old_name="latRange_50",new_name="latRange_50",unit="meters",method="derived from DEM"),
-                                ua=list(old_name="UAA",new_name="UAA",unit="meters",method="derived from DEM"),
+                                ua=list(old_name="UAA",new_name="UAA",unit="km^2",method="derived from DEM"),
                                 spi=list(old_name="SPI",new_name="SPI",unit="index",method="derived from DEM"))
 segs=addUnitMethod(segs,name_unit_method_list)
 
@@ -192,3 +192,11 @@ dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 
 characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=38:46,newBatchName="mean of DEM derived vars")
 characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=26:46,newBatchName = "mean of DEM derived vars")
+
+###############----------add area characteristics to segment points
+
+dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
+dbGetQuery(leakyDB,"SELECT * FROM Batches")
+characterizePointsByAreas(pointsBatch=5,dataTypesToAdd=23:37)
+
+  
