@@ -1,6 +1,6 @@
 library(rgdal)
 library(rgrass7)
-buildHugeStreamNetwork=function(segLength=250){
+buildHugeStreamNetwork=function(segLength){
   source("C:/Users/sam/Documents/R/projects/rGrassTools/grassTools.r")
   gc()
   #InitGrass_byRaster(rasterPath="C:/Users/Sam/Desktop/spatial/QgisEnvironment/Inputs_and_scripts/allDemRaw/all4_wgs84_13n.tif")
@@ -10,7 +10,9 @@ buildHugeStreamNetwork=function(segLength=250){
   execGRASS("r.watershed",elevation="dem@PERMANENT",threshold=5000,drainage="flowDir_xxl",stream="streams_rast",spi="streamPower",accumulation="flowAccum_xxl", flags=c("overwrite", "a", "s"))
   execGRASS("r.thin",input="streams_rast",output="streams_rast",flags="overwrite")
   execGRASS("r.to.vect",input="streams_rast",output="streams_vect",type="line",flags="overwrite")
-  execGRASS("v.split",input="streams_vect",output="streamSegs_vect",length=segLength,flags="overwrite")
+  execGRASS("v.split",input="streams_vect",output="streamSegs_vect_simple",length=segLength,flags="overwrite")#straight line segs have no intermediate verticies, which hurts elevation sampling later on
+  execGRASS("v.split",input="streamSegs_vect_simple",output="streamSegs_vect",length=segLength/5,flags="overwrite") #add a more verticies to segments
+  
   execGRASS("v.in.ogr",input="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/AnalysisExtent.shp",output="extent",flags="overwrite")
   execGRASS("v.select",ainput="streamSegs_vect",binput="extent",output="streamSegs_vect_clip",operator="overlap",flags="overwrite")
   execGRASS("v.out.ogr",input="streamSegs_vect_clip",

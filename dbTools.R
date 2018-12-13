@@ -58,7 +58,7 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
       print("Adding areas:")
     }
     if(!all( c("dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName","areaPath") %in% names(dataDF) )){
-      stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :X, Y, dateTime, value, QCStatusOK, metric, unit, method, areaName"))
+      stop(paste(paste(names(dataDF),collapse=","),"missing one or more of :dateTime, value, QCStatusOK, metric, unit, method, areaName"))
     } else{
       dataDF=dataDF[,names(dataDF) %in% c("X","Y","dateTime", "value", "QCStatusOK", "metric", "unit", "method", "areaName", "areaPath")]
       dataDF=dataDF[complete.cases(dataDF),]
@@ -119,19 +119,21 @@ addData=function(dataDF,batchName,batchSource,flags=defaultFlags,...){
   a=apply(X=dataDF,MARGIN = 1, FUN=addData_worker,batchName=batchName,batchSource=batchSource)
   
   #vectorized snap
-  print("snapping points to streams...")
   toSnap=dbGetQuery(leakyDB,"SELECT * FROM Points WHERE onStream = '0'")
-  writeDF=snapToStream(toSnap,flags=f)
-  #drop from points, append snapped data
-  dbExecute(leakyDB,"DELETE FROM Points WHERE onStream = '0'")
-  
-  if("X"%in%names(writeDF)){
-    writeDF[names(writeDF)=="X"]=format(writeDF[names(writeDF)=="X"],10)
+  if(nrow(toSnap)>0){
+    print("snapping points to streams...")
+    writeDF=snapToStream(toSnap,flags=f)
+    #drop from points, append snapped data
+    dbExecute(leakyDB,"DELETE FROM Points WHERE onStream = '0'")
+    
+    if("X"%in%names(writeDF)){
+      writeDF[names(writeDF)=="X"]=format(writeDF[names(writeDF)=="X"],10)
+    }
+    if("Y"%in%names(writeDF)){
+      writeDF[names(writeDF)=="Y"]=format(writeDF[names(writeDF)=="Y"],10)
+    }
+    dbWriteTable(leakyDB,"Points",writeDF,append=T)
   }
-  if("Y"%in%names(writeDF)){
-    writeDF[names(writeDF)=="Y"]=format(writeDF[names(writeDF)=="Y"],10)
-  }
-  dbWriteTable(leakyDB,"Points",writeDF,append=T)
 }
 
 addWatershedDefinitions=function(wshedDefs,flags=defaultFlags,...){
@@ -256,7 +258,7 @@ addLocation=function(pointXYdf=NULL,inShpDSN=NULL,areaName=NULL,flags){
     if(f$addMidpoint & !(f$addPoints)){ # only add midpoint if no point coords are specified
       thisAreaIDX=areaIDXs$areaIDX
       thisPointIDX=areaIDXs$pointIDX
-    } else {
+    } else {  #case for no points or midpoints
       thisAreaIDX=areaIDXs
     }
   }

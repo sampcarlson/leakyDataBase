@@ -157,6 +157,31 @@ addData(morph,
         inEPSG=4326,
         streamSnapDistCells=50)
 
+################----------------------Whol&beckman 2012 data-----------------------
+morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSVOnly.csv")
+morph$slopeDeg = atan(morph$slope) * (180 / pi)
+morph$JamsPerKm=morph$jam.count/(morph$length/1000)
+morph$areaName=paste0(morph$reach,morph$id)
+morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/WholBeckmanShapes/",morph$areaName,".shp")
+morph=melt(morph,id.vars = c("areaName","areaPath"),
+           measure.vars = c("stand.age","typ","width","JamsPerKm","slopeDeg"),
+           variable.name = "metric")
+name_unit_method_list=list(sta=list(old_name="stand.age",new_name="standAge",unit="years",method="Whol Beckman 2012"),
+                           typ=list(old_name="typ",new_name="confinement",unit="categorical",method="Whol Beckman 2012"),
+                           width=list(old_name="width",new_name="bankfullWidth",unit="m",method="Whol Beckman 2012"),
+                           jpk=list(old_name="JamsPerKm",new_name="jamsPerKm",unit="count km^-1",method="Whol Beckman 2012"),
+                           slp=list(old_name="slopeDeg",new_name="slope",unit="degrees",method="Whol Beckman 2012"))
+morph=addUnitMethod(morph,name_unit_method_list)
+morph$dateTime=as.Date("2012/8/1")
+morph$QCStatusOK=T
+addData(morph,
+        batchName="Whol Beckman 2012",
+        batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSVOnly.csv",
+        inEPSG=4326,
+        streamSnapDistCells=50,
+        addMidpoint=F)
+
+
 
 ################------------add points representing every 100 m reach w/ reach slope data-----------------#############
 #go have lunch & a beer or two - this takes a while
@@ -197,6 +222,8 @@ characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=26:46,newBatchName
 
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
+#combine these:
 characterizePointsByAreas(pointsBatch=5,dataTypesToAdd=23:37)
+characterizePointsByAreas(pointsBatch=5,dataTypesToAdd=68:72)
 
   
