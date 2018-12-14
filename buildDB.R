@@ -10,8 +10,8 @@ source('~/R/projects/leakyDataBase/BuildHugeStreamNetwork.R')
 
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
 
-#rebuild stream network info - long process w/ shorter seg lengths
-buildHugeStreamNetwork(segLength=100)
+#rebuild stream network info - very long process w/ shorter seg lengths
+#buildHugeStreamNetwork(segLength=100)
 
 #set all defaults
 defaultFlags=list(inEPSG=32613,
@@ -101,14 +101,15 @@ addData(pfeiffer,
 resp=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/resp/bob_respRates_simpleSites.csv",colClasses="character")
 resp$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/resp/respShapes/",resp$areaName,".shp")
 resp=melt(resp,id.vars=c("x","y","areaName","areaPath","dateTime"),
-          measure.vars=c("Temperature","GPP","ER"),
+          measure.vars=c("Temperature","GPP","ER","K600"),
           variable.name="metric")
 resp=plyr::rename(resp,replace=c(x="X",y="Y"))
 resp$dateTime=as.Date(resp$dateTime)
 
 name_unit_method_list=list(temp=list(old_name="Temperature",new_name="temperature",unit="deg C", method = "Bob metab survey"),
                            gpp=list(old_name="GPP",new_name="GPP",unit="mmol O2 m^-2 day^-1", method = "Bob metab survey"),
-                           er=list(old_name="ER",new_name="ER",unit="mmol O2 m^-2 day^-1", method = "Bob metab survey"))
+                           er=list(old_name="ER",new_name="ER",unit="mmol O2 m^-2 day^-1", method = "Bob metab survey"),
+                           k=list(old_name="K600",new_name="K600",unit="day^-1",method="Bob metab survey"))
 resp=addUnitMethod(resp,name_unit_method_list)
 resp$QCStatusOK=T
 addData(resp,
@@ -185,7 +186,7 @@ addData(morph,
 
 ################------------add points representing every 100 m reach w/ reach slope data-----------------#############
 #go have lunch & a beer or two - this takes a while
-createStreamSegsDF()
+#createStreamSegsDF()
 
 segs=read.csv("StreamSegs_slope_conf_xxl.csv")
 segs=melt(segs,id.vars=c("cat","X","Y"),
@@ -211,19 +212,18 @@ addData(segs,
 ###############----------add watershedID to locations---------------------################
 inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watersheds")$watershedID)
 
-###############----------add DEM derived characteristics to morph survey areas
-
-dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
-
-characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=38:46,newBatchName="mean of DEM derived vars")
-characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=26:46,newBatchName = "mean of DEM derived vars")
 
 ###############----------add area characteristics to segment points
-
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
-#combine these:
-characterizePointsByAreas(pointsBatch=5,dataTypesToAdd=23:37)
-characterizePointsByAreas(pointsBatch=5,dataTypesToAdd=68:72)
+
+characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=23:43)
+
+
+###############----------add many metrics to areas
+
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:8,23:26,39:52),newBatchName="mean of segPoint values")
+characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:8,27:52),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:8,23:38,44:52),newBatchName = "mean of segPoint values")
 
   

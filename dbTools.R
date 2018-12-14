@@ -410,14 +410,15 @@ createStreamSegsDF=function(){
   library(raster)
   library(parallel)
   library(snow)
+  library(dplyr)
   
   print("load stream segs shape...")
   streamSegs=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs.shp")
   #as compared to Q, the data is stored in attributes, and the attributes are stored as data
   #field 'AUTO' is unique segment ID
   
-  #drop segments shorter than 3 coordinate pairs
-  streamSegs=subset(streamSegs,sapply(streamSegs@lines,getCoordCount)>2)
+  #drop segments shorter than 2 coordinate pairs
+  streamSegs=subset(streamSegs,sapply(streamSegs@lines,getCoordCount)>1)
   
   #for debug:
   #streamSegs=subset(streamSegs,c(rep(T,100),rep(F,10455)))
@@ -427,31 +428,17 @@ createStreamSegsDF=function(){
   
   InitGrass_byRaster()
   
-  print("write to grass../")
+  print("write to grass...")
   writeVECT(streamSegs,vname="streamSegs",v.in.ogr_flags = "o")
   print("sample elev range...")
   execGRASS("v.rast.stats",map="streamSegs",raster="dem",column_prefix="elevRange",method="range")
   print("read & calc slope...")
   streamSegs=readVECT("streamSegs")
   streamSegs$slope=atan(streamSegs$elevRange_range/streamSegs$length) * (180/pi) #as percent
-  streamSegs$X=1
   #hist(streamSegs$slope)
   #looks reasonable?
   
-  getMidpointCoords=function(singleSegment,coord="XY"){
-    mid_idx=round(length(singleSegment@Lines[[1]]@coords[,1])/2)
-    if(coord=="X"){
-      return(singleSegment@Lines[[1]]@coords[mid_idx,1])
-    }
-    if(coord=="Y"){
-      return(singleSegment@Lines[[1]]@coords[mid_idx,2])
-    }
-    if(coord=="XY"){
-      return(c(singleSegment@Lines[[1]]@coords[mid_idx,1],
-               singleSegment@Lines[[1]]@coords[mid_idx,2]))
-    }
-    
-  }
+  
   
   getHeadings=function(feature,smoothScope=1){
     getSegHeadings=function(seg,smoothScope){
@@ -471,8 +458,15 @@ createStreamSegsDF=function(){
     return(feature)
   }
   print("calculate midpoints...")
-  streamSegs$X=sapply(streamSegs@lines,getMidpointCoords,coord="X")
-  streamSegs$Y=sapply(streamSegs@lines,getMidpointCoords,coord="Y")
+  segMidpoints=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/segPoints.shp")
+  
+  
+  segPointsDF=data.frame(cat=segMidpoints@data$cat,X=coordinates(segMidpoints)[,1],Y=coordinates(segMidpoints)[,2])
+  
+  streamSegs@data=left_join(streamSegs@data,segPointsDF,by="cat")
+  #streamSegs$X=sapply(streamSegs@lines,getMidpointCoords,coord="X")
+  #streamSegs$Y=sapply(streamSegs@lines,getMidpointCoords,coord="Y")
+  
   print("calc headings...")
   streamSegs=getHeadings(streamSegs)
   
@@ -598,6 +592,13 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
                                       WHERE Batches.batchName = '",areasBatchName,"'"))
   
   allPoints=dbGetQuery(leakyDB,"SELECT Locations.LocationIDX, Locations.PointIDX, Points.X, Points.Y FROM Locations LEFT JOIN Points ON Locations.PointIDX = Points.PointIDX")
+  #not all areas have points, however, all area characteristics have been added to regularly spaced segment points.
+  #drop where pointIDX=0 or X, Y are absent
+  allPoints$pointIDX[allPoints$pointIDX==0]=NA
+  allPoints=allPoints[complete.cases(allPoints),]
+  allPoints$X=as.numeric(as.character(allPoints$X))
+  allPoints$Y=as.numeric(as.character(allPoints$Y))
+  
   writeVECT(SDF=sp::SpatialPointsDataFrame(coords=allPoints[,c("X","Y")],data=allPoints[,c("locationIDX","pointIDX")]),
             vname="allPoints",v.in.ogr_flags = c("o","overwrite","quiet"))
   

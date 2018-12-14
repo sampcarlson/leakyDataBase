@@ -10,17 +10,32 @@ buildHugeStreamNetwork=function(segLength){
   execGRASS("r.watershed",elevation="dem@PERMANENT",threshold=5000,drainage="flowDir_xxl",stream="streams_rast",spi="streamPower",accumulation="flowAccum_xxl", flags=c("overwrite", "a", "s"))
   execGRASS("r.thin",input="streams_rast",output="streams_rast",flags="overwrite")
   execGRASS("r.to.vect",input="streams_rast",output="streams_vect",type="line",flags="overwrite")
-  execGRASS("v.split",input="streams_vect",output="streamSegs_vect_simple",length=segLength,flags="overwrite")#straight line segs have no intermediate verticies, which hurts elevation sampling later on
-  execGRASS("v.split",input="streamSegs_vect_simple",output="streamSegs_vect",length=segLength/5,flags="overwrite") #add a more verticies to segments
+  execGRASS("v.split",input="streams_vect",output="streamSegs_vect",length=segLength,flags="overwrite")
   
   execGRASS("v.in.ogr",input="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/AnalysisExtent.shp",output="extent",flags="overwrite")
   execGRASS("v.select",ainput="streamSegs_vect",binput="extent",output="streamSegs_vect_clip",operator="overlap",flags="overwrite")
-  execGRASS("v.out.ogr",input="streamSegs_vect_clip",
+  execGRASS("v.category",input="streamSegs_vect_clip",option="del",cat=-1,output="streamSegsNoCat")
+  execGRASS("v.category",input="streamSegsNoCat",output="streamSegsCat",option="add",flags="overwrite")
+  execGRASS("v.out.ogr",input="streamSegsCat",
             output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/xxl_streamSegs.shp",
             format="ESRI_Shapefile",flags="overwrite")
+  
+  
+  cats=execGRASS("v.category",input="streamSegsCat",option="print",intern = T)
+  writeDF=data.frame(p="P",pid=cats,cats=cats,offset="50%")
+  write.table(writeDF,file="vSeg.txt",row.names=F,col.names = F,quote=F)
+  execGRASS("v.segment",input="streamSegsCat",output="segPoints",rules=paste(getwd(),"vSeg.txt",sep="/"),flags=c("overwrite","verbose"))
+  
+  execGRASS("v.out.ogr",input="segPoints",
+            output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/segPoints.shp",
+            format="ESRI_Shapefile",flags="overwrite")
+  
+  
   
   execGRASS("r.out.gdal",input="flowDir_xxl",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/flowDir_xxl.tif",nodata=0,format="GTiff",flags="overwrite")
   execGRASS("r.out.gdal",input="flowAccum_xxl",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/flowAccum_xxl.tif",nodata=0,format="GTiff",flags="overwrite")
   execGRASS("r.out.gdal",input="streams_rast",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/streamsRast_xxl.tif",nodata=0,format="GTiff",flags="overwrite")
   execGRASS("r.out.gdal",input="streamPower",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/streamPower_xxl.tif",nodata=0,format="GTiff",flags="overwrite")
 }
+
+
