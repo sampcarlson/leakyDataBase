@@ -7,6 +7,7 @@ source("dbTools.R")
 source("C:/Users/sam/Documents/R/projects/rGrassTools/grassTools.r")
 source('~/R/projects/leakyDataBase/dbTools.R')
 source('~/R/projects/leakyDataBase/BuildHugeStreamNetwork.R')
+source('~/R/projects/leakyDataBase/widthWrangler.R')
 
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
 
@@ -38,21 +39,23 @@ wshedDefs=addWatershedDefinitions( wshedDefs=read.csv('C:/Users/sam/Documents/sp
 
 
 ###################-------------------add widths (from Mike and I) --------################
-widths=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/FinalWidths_11_2018.csv",stringsAsFactors = F)
-#can't handle data without coordinates - bother mike about this if necessary
-widths=widths[complete.cases(widths[,c("X","Y")]),]
-widths$variable[widths$variable=="Wetted width"]="wettedWidth"
-widths$variable[widths$variable=="Bank-full width"]="bankfullWidth"
-widths$variable[widths$variable=="DepArea_pct"]="depositionalArea"
-#data, containing $X, $Y, $dateTime, $value, $QCStatusOK, $metric, $unit, $method
-writeDF=widths[,c("X","Y","Date","value","variable","unit","dataType")]
-writeDF=plyr::rename(writeDF,replace=c("Date"="dateTime","variable"="metric","dataType"="method"))
+widths=wrangleWidths()
+names(widths)[names(widths)=="x"]="X"
+names(widths)[names(widths)=="y"]="Y"
+
+widths$areaName=widths$Site
+widths$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/width/widthAreas/",widths$areaName,".shp")
+
+
+writeDF=widths[,c("date","value","variable","unit","dataType","areaName","areaPath")]
+writeDF=plyr::rename(writeDF,replace=c("date"="dateTime","variable"="metric","dataType"="method"))
 
 writeDF$QCStatusOK=TRUE
 addData(writeDF,
         batchName="mikeSamWidths",
-        batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/width/FinalWidths_11_2018.csv",
-        inEPSG=4326,compareData=F)
+        batchSource="widthWrangler.R",
+        inEPSG=4326,compareData=F,
+        addMidpoint=F)
 
 
 ###############---------------add pfeiffer thesis data####################---------------------
@@ -217,13 +220,13 @@ inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watershed
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
 
-characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=23:43)
+characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:38))
 
 
 ###############----------add many metrics to areas
 
-characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:8,23:26,39:52),newBatchName="mean of segPoint values")
-characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:8,27:52),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:8,23:38,44:52),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,34:47),newBatchName="mean of segPoint values")
+characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:47),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:3,18:33,39:47),newBatchName = "mean of segPoint values")
 
   
