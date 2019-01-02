@@ -228,5 +228,5 @@ characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:38))
 characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,34:47),newBatchName="mean of segPoint values")
 characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:47),newBatchName = "mean of segPoint values")
 characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:3,18:33,39:47),newBatchName = "mean of segPoint values")
-
+characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:47),newBatchName = "mean of segPoint values")
   
