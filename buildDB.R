@@ -123,21 +123,27 @@ addData(resp,
 
 
 #########---------------bridget morphology data----------------------###########
-morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/Geomorph_sites_and_data_bridget.csv")
-morph=morph[,c("Treatment","Reach","Network","NEW.Confinement","Mean.valley.width","Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools","Jams","Length..m.","WoodVolPerArea","Up.Y","Up.X","Down.Y","Down.X")]
+morph=read.csv("morphForDB.csv")
+
+morph=morph[,c("Treatment","Reach","Network","NEW.Confinement","Mean.valley.width","Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools","Jams","Length..m.","WoodVolPerArea","Up.Y","Up.X","Down.Y","Down.X","totalSedC_Mg_100m_valley","Valley.length..m.","Wood.Surface.Area..m2.")]
 morph$areaName=morph$Reach
 morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphShapes/",morph$areaName,".shp")
 
 morph$meanNumberOfChannels=morph$Mean.total.width..m./morph$Mean.width.of.ind..Channel
 morph$JamsPerKmChannel=morph$Jams * (1000/morph$Length..m.) / morph$meanNumberOfChannels
 morph$JamPoolsPerKmChannel=morph$JamsPerKmChannel*morph$Proportion.jams.with.pools
+
+morph$totalSedOCPerKm=morph$totalSedC_Mg_100m_valley*1000*10*(morph$Valley.length..m./morph$Length..m.)/morph$meanNumberOfChannels
+
+morph$Wood.Surface.Area..m2.=morph$Wood.Surface.Area..m2.* (1000/morph$Length..m.) / morph$meanNumberOfChannels
+
 morph=plyr::rename(morph,replace=c(Down.X="X",Down.Y="Y"))
 
 morph=melt(morph,id.vars=c("areaName","areaPath","X","Y"),
            measure.vars = c("Treatment","NEW.Confinement","Mean.valley.width",
                             "Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools",
                             "Jams","Length..m.","WoodVolPerArea","meanNumberOfChannels",
-                            "JamsPerKmChannel","JamPoolsPerKmChannel"),
+                            "JamsPerKmChannel","JamPoolsPerKmChannel","totalSedOCPerKm","Wood.Surface.Area..m2."),
            variable.name = "metric")
 
 name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",unit="categorical",method="Bridget morphology survey"),
@@ -151,7 +157,9 @@ name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",un
                            wva=list(old_name="WoodVolPerArea",new_name="woodDepth",unit="m",method="Bridget morphology survey"),
                            chc=list(old_name="meanNumberOfChannels",new_name="multiChannelCount",unit="count",method="Bridget morphology survey"),
                            jpk=list(old_name="JamsPerKmChannel",new_name="jamsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
-                           jppk=list(old_name="JamPoolsPerKmChannel",new_name="jamPoolsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"))
+                           jppk=list(old_name="JamPoolsPerKmChannel",new_name="jamPoolsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
+                           sopk=list(old_name="totalSedOCPerKm",new_name="sedOCPerKm",unit = "Kg stream sediment C km^-1 channel^-1",method="Bridget morphology survey"),
+                           wsa=list(old_name="Wood.Surface.Area..m2.",new_name="woodSurfaceArea",unit="m^2",method="Bridget morphology survey"))
 morph=addUnitMethod(morph,name_unit_method_list)
 morph$dateTime=as.Date("2015/8/1")
 morph$QCStatusOK=T
@@ -220,13 +228,13 @@ inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watershed
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
 
-characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:38))
+characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:40))
 
 
 ###############----------add many metrics to areas
 
-characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,34:47),newBatchName="mean of segPoint values")
-characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:47),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:3,18:33,39:47),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:47),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,36:49),newBatchName="mean of segPoint values")
+characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:49),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:3,18:35,41:49),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:49),newBatchName = "mean of segPoint values")
   
