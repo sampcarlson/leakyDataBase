@@ -176,9 +176,10 @@ morph$JamsPerKm=morph$jam.count/(morph$length/1000)
 morph$areaName=paste0(morph$reach,morph$id)
 morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/WholBeckmanShapes/",morph$areaName,".shp")
 morph=melt(morph,id.vars = c("areaName","areaPath"),
-           measure.vars = c("stand.age","typ","width","JamsPerKm","slopeDeg"),
+           measure.vars = c("stand.age","typ","width","JamsPerKm","slopeDeg","landUse"),
            variable.name = "metric")
-name_unit_method_list=list(sta=list(old_name="stand.age",new_name="standAge",unit="years",method="Whol Beckman 2012"),
+name_unit_method_list=list(treat=list(old_name="landUse",new_name="landUse",unit="categorical",method="Whol Beckman 2012"),
+                           sta=list(old_name="stand.age",new_name="standAge",unit="years",method="Whol Beckman 2012"),
                            typ=list(old_name="typ",new_name="confinement",unit="categorical",method="Whol Beckman 2012"),
                            width=list(old_name="width",new_name="bankfullWidth",unit="m",method="Whol Beckman 2012"),
                            jpk=list(old_name="JamsPerKm",new_name="jamsPerKm",unit="count km^-1",method="Whol Beckman 2012"),
@@ -228,13 +229,13 @@ inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watershed
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
 
-characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:40))
+characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:41))
 
 
 ###############----------add many metrics to areas
 
-characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,36:49),newBatchName="mean of segPoint values")
-characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:49),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:3,18:35,41:49),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:49),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,36:50),newBatchName="mean of segPoint values")
+characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:40),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:3,18:35,42:50),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:50),newBatchName = "mean of segPoint values")
   
