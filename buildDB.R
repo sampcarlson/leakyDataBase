@@ -130,6 +130,7 @@ morph$areaName=morph$Reach
 morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphShapes/",morph$areaName,".shp")
 
 morph$meanNumberOfChannels=morph$Mean.total.width..m./morph$Mean.width.of.ind..Channel
+morph$totalChannelLengthKm=morph$Length..m.*morph$meanNumberOfChannels/1000
 morph$JamsPerKmChannel=morph$Jams * (1000/morph$Length..m.) / morph$meanNumberOfChannels
 morph$JamPoolsPerKmChannel=morph$JamsPerKmChannel*morph$Proportion.jams.with.pools
 
@@ -143,7 +144,7 @@ morph=melt(morph,id.vars=c("areaName","areaPath","X","Y"),
            measure.vars = c("Treatment","NEW.Confinement","Mean.valley.width",
                             "Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools",
                             "Jams","Length..m.","WoodVolPerArea","meanNumberOfChannels",
-                            "JamsPerKmChannel","JamPoolsPerKmChannel","totalSedOCPerKm","Wood.Surface.Area..m2."),
+                            "totalChannelLengthKm","totalSedOCPerKm","Wood.Surface.Area..m2."),
            variable.name = "metric")
 
 name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",unit="categorical",method="Bridget morphology survey"),
@@ -156,8 +157,9 @@ name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",un
                            len=list(old_name="Length..m.",new_name="segmentLength",unit="m",method="Bridget morphology survey"),
                            wva=list(old_name="WoodVolPerArea",new_name="woodDepth",unit="m",method="Bridget morphology survey"),
                            chc=list(old_name="meanNumberOfChannels",new_name="multiChannelCount",unit="count",method="Bridget morphology survey"),
-                           jpk=list(old_name="JamsPerKmChannel",new_name="jamsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
+                           tcl=list(old_name="JamsPerKmChannel",new_name="jamsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
                            jppk=list(old_name="JamPoolsPerKmChannel",new_name="jamPoolsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
+                           tcl=list(old_name="totalChannelLengthKm",new_name="channelLength",unit="km",method="Bridget morphology survey"),
                            sopk=list(old_name="totalSedOCPerKm",new_name="sedOCPerKm",unit = "Kg stream sediment C km^-1 channel^-1",method="Bridget morphology survey"),
                            wsa=list(old_name="Wood.Surface.Area..m2.",new_name="woodSurfaceArea",unit="m^2",method="Bridget morphology survey"))
 morph=addUnitMethod(morph,name_unit_method_list)
@@ -178,17 +180,18 @@ morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/WholBeckman
 morph=melt(morph,id.vars = c("areaName","areaPath"),
            measure.vars = c("stand.age","typ","width","JamsPerKm","slopeDeg","landUse"),
            variable.name = "metric")
-name_unit_method_list=list(treat=list(old_name="landUse",new_name="landUse",unit="categorical",method="Whol Beckman 2012"),
-                           sta=list(old_name="stand.age",new_name="standAge",unit="years",method="Whol Beckman 2012"),
-                           typ=list(old_name="typ",new_name="confinement",unit="categorical",method="Whol Beckman 2012"),
-                           width=list(old_name="width",new_name="bankfullWidth",unit="m",method="Whol Beckman 2012"),
-                           jpk=list(old_name="JamsPerKm",new_name="jamsPerKm",unit="count km^-1",method="Whol Beckman 2012"),
-                           slp=list(old_name="slopeDeg",new_name="slope",unit="degrees",method="Whol Beckman 2012"))
+name_unit_method_list=list(treat=list(old_name="landUse",new_name="landUse",unit="categorical",method="Wohl Beckman 2014"),
+                           sta=list(old_name="stand.age",new_name="standAge",unit="years",method="Wohl Beckman 2014"),
+                           typ=list(old_name="typ",new_name="confinement",unit="categorical",method="Wohl Beckman 2014"),
+                           width=list(old_name="width",new_name="bankfullWidth",unit="m",method="Wohl Beckman 2014"),
+                           jpk=list(old_name="JamsPerKm",new_name="jamsPerKm",unit="count km^-1",method="Wohl Beckman 2014"),
+                           slp=list(old_name="slopeDeg",new_name="slope",unit="degrees",method="Wohl Beckman 2014"),
+                           chl=list(old_name="length",new_name="channelLength",unit="km",method="Wohl Beckman 2014"))
 morph=addUnitMethod(morph,name_unit_method_list)
 morph$dateTime=as.Date("2012/8/1")
 morph$QCStatusOK=T
 addData(morph,
-        batchName="Whol Beckman 2012",
+        batchName="Wohl Beckman 2014",
         batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSVOnly.csv",
         inEPSG=4326,
         streamSnapDistCells=50,
