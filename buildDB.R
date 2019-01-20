@@ -143,7 +143,7 @@ morph=plyr::rename(morph,replace=c(Down.X="X",Down.Y="Y"))
 morph=melt(morph,id.vars=c("areaName","areaPath","X","Y"),
            measure.vars = c("Treatment","NEW.Confinement","Mean.valley.width",
                             "Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools",
-                            "Jams","Length..m.","WoodVolPerArea","meanNumberOfChannels",
+                            "Jams","Length..m.","WoodVolPerArea","meanNumberOfChannels","JamsPerKmChannel","JamPoolsPerKmChannel",
                             "totalChannelLength","totalSedOCPerKm","Wood.Surface.Area..m2."),
            variable.name = "metric")
 
@@ -233,13 +233,13 @@ inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watershed
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
 
-characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:41))
+characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:44))
 
 
 ###############----------add many metrics to areas
 
-characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,36:50),newBatchName="mean of segPoint values")
-characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:40),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="Whol Beckman 2012",addDTs=c(1:3,18:35,42:50),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:50),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,37:53),newBatchName="mean of segPoint values")
+characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:53),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:3,18:36,45:53),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:53),newBatchName = "mean of segPoint values")
   
