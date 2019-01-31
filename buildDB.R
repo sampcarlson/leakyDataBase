@@ -202,21 +202,21 @@ addData(morph,
 
 ################------------add points representing every 100 m reach w/ reach slope data-----------------#############
 #go have lunch & a beer or two - this takes a while
-#createStreamSegsDF()
+createStreamSegsDF()
 
 segs=read.csv("StreamSegs_slope_conf_xxl.csv")
 segs=melt(segs,id.vars=c("cat","X","Y"),
-          measure.vars = c("slope","heading_rad","elevRange_25","elevation","latRange_10","latRange_25","latRange_50","UAA","SPI"),
+          measure.vars = c("slope","heading_rad","elevRange_25","elevation","latRange_10","latRange_25","minLatRange_10","minLatRange_25","UAA","SPI"),
           variable.name = "metric")
 name_unit_method_list=list(slope=list(old_name="slope",new_name="slope",unit="degrees",method="derived from DEM"),
-                                hea=list(old_name="heading_rad",new_name="azimuth",unit="radians",method="derived from DEM"),
-                                er=list(old_name="elevRange_25",new_name="elevRange_25",unit="m",method="derived from DEM"),
-                                elev=list(old_name="elevation",new_name="elevation",unit="m",method="derived from DEM"),
-                                l1=list(old_name="latRange_10",new_name="latRange_10",unit="meters",method="derived from DEM"),
-                                l2=list(old_name="latRange_25",new_name="latRange_25",unit="meters",method="derived from DEM"),
-                                l5=list(old_name="latRange_50",new_name="latRange_50",unit="meters",method="derived from DEM"),
-                                ua=list(old_name="UAA",new_name="UAA",unit="km^2",method="derived from DEM"),
-                                spi=list(old_name="SPI",new_name="SPI",unit="index",method="derived from DEM"))
+                           hea=list(old_name="heading_rad",new_name="azimuth",unit="radians",method="derived from DEM"),
+                           elev=list(old_name="elevation",new_name="elevation",unit="m",method="derived from DEM"),
+                           l1=list(old_name="latRange_10",new_name="latRange_10",unit="meters",method="derived from DEM"),
+                           l2=list(old_name="latRange_25",new_name="latRange_25",unit="meters",method="derived from DEM"),
+                           ml1=list(old_name="minLatRange_10",new_name="minLatRange_10",unit="meters",method="derived from DEM"),
+                           ml2=list(old_name="minLatRange_25",new_name="minLatRange_25",unit="meters",method="derived from DEM"),
+                           ua=list(old_name="UAA",new_name="UAA",unit="km^2",method="derived from DEM"),
+                           spi=list(old_name="SPI",new_name="SPI",unit="index",method="derived from DEM"))
 segs=addUnitMethod(segs,name_unit_method_list)
 
 segs$dateTime=as.Date("2018/12/1")
@@ -242,4 +242,3 @@ characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,
 characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:53),newBatchName = "mean of segPoint values")
 characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:3,18:36,45:53),newBatchName = "mean of segPoint values")
 characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:53),newBatchName = "mean of segPoint values")
-  

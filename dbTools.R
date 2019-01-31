@@ -478,14 +478,14 @@ createStreamSegsDF=function(){
     return(ma-mi)
   }
   dem_rast=raster("C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
-  print("sample elev range around midpoints...")
-  beginCluster(n=c)
-  streamSegsDF$elevRange_25=raster::extract(x=dem_rast,
-                                            y=streamSegsDF[,c("X","Y")],
-                                            buffer=25,
-                                            fun=rng)
-  endCluster()
-  
+  # print("sample elev range around midpoints...")
+  # beginCluster(n=c)
+  # streamSegsDF$elevRange_25=raster::extract(x=dem_rast,
+  #                                           y=streamSegsDF[,c("X","Y")],
+  #                                           buffer=25,
+  #                                           fun=rng)
+  # endCluster()
+  # 
   print("sample elevation")
   streamSegsDF$elevation=raster::extract(x=dem_rast,
                                          y=streamSegsDF[,c("X","Y")])
@@ -528,9 +528,9 @@ createStreamSegsDF=function(){
     #endCluster()
     latRangeRight=mapply(rng,right_elev,streamSegsDF$elevation)
     latRangeLeft=mapply(rng,left_elev,streamSegsDF$elevation)
-    latRange$min=mapply(min,latRangeRight,latRangeLeft)
+    latRangeMin=mapply(min,latRangeRight,latRangeLeft)
     
-    return(latRange)
+    return(latRangeMin)
   }
   
   print("sample lat range 10...")
