@@ -511,14 +511,36 @@ createStreamSegsDF=function(){
     return(latRange)
   }
   
+  getMinLateralElevRange=function(streamSegsDF,conf_range){
+    
+    calcLatCoords=function(segDF,thisRange){
+      left_y=(sin(segDF$heading_rad+(pi/2))*thisRange)+segDF$Y
+      left_x=(cos(segDF$heading_rad+(pi/2))*thisRange)+segDF$X
+      right_y=(sin(segDF$heading_rad-(pi/2))*thisRange)+segDF$Y
+      right_x=(cos(segDF$heading_rad-(pi/2))*thisRange)+segDF$X
+      return(list(left_y=left_y,left_x=left_x,right_y=right_y,right_x=right_x))
+    }
+    
+    latCoords=calcLatCoords(streamSegsDF,conf_range)
+    #beginCluster(n=c) #not as intensive as the buffered extraction above, but still benefits from parallel
+    left_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))
+    right_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))
+    #endCluster()
+    latRangeRight=mapply(rng,right_elev,streamSegsDF$elevation)
+    latRangeLeft=mapply(rng,left_elev,streamSegsDF$elevation)
+    latRange$min=mapply(min,latRangeRight,latRangeLeft)
+    
+    return(latRange)
+  }
+  
   print("sample lat range 10...")
   streamSegsDF$latRange_10=getLateralElevRange(streamSegsDF,conf_range = 10)
+  streamSegsDF$minLatRange_10=getMinLateralElevRange(streamSegsDF,conf_range = 10)
   
   print("sample lat range 25...")
   streamSegsDF$latRange_25=getLateralElevRange(streamSegsDF,conf_range = 25)
+  streamSegsDF$minLatRange_25=getMinLateralElevRange(streamSegsDF,conf_range = 25)
   
-  print("sample lat range 50...")
-  streamSegsDF$latRange_50=getLateralElevRange(streamSegsDF,conf_range = 50)
   
   naMax=function(...){
     return(max(..., na.rm=T))
