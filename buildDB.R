@@ -31,11 +31,11 @@ lapply(dbListTables(leakyDB),FUN=delete_data,db=leakyDB)
 #run freshStart.sql in r project directory to fully trash and recreate db
 
 #init grass session for all DB processes:
-InitGrass_byRaster(rasterPath="C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
+InitGrass_byRaster(rasterPath="C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix_NSV.tif")
 
 ############------------define watersheds----------###########
-wshedDefs=addWatershedDefinitions( wshedDefs=read.csv('C:/Users/sam/Documents/spatial/data/WatershedOutflowPoints/allWsheds_13n.csv'),
-                                   addMidpoint=F, dbShapeName="watershedArea_")
+#wshedDefs=addWatershedDefinitions( wshedDefs=read.csv('C:/Users/sam/Documents/spatial/data/WatershedOutflowPoints/allWsheds_13n.csv'),
+#                                   addMidpoint=F, dbShapeName="watershedArea_")
 
 
 ###################-------------------add widths (from Mike and I) --------################
@@ -202,7 +202,7 @@ addData(morph,
 
 ################------------add points representing every 100 m reach w/ reach slope data-----------------#############
 #go have lunch & a beer or two - this takes a while
-#createStreamSegsDF()
+createStreamSegsDF()
 
 segs=read.csv("StreamSegs_slope_conf_xxl.csv")
 segs=melt(segs,id.vars=c("cat","X","Y"),
