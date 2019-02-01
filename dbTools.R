@@ -569,7 +569,9 @@ createStreamSegsDF=function(){
 
 inWatershed=function(watershedIDs){
   
-  allPoints=dbGetQuery(leakyDB,"SELECT Locations.LocationIDX, Locations.PointIDX, Points.X, Points.Y FROM Locations LEFT JOIN Points ON Locations.PointIDX = Points.PointIDX WHERE Locations.isPoint = '1' AND Locations.watershedID = 'not assigned'")
+  allPoints=dbGetQuery(leakyDB,"SELECT Locations.LocationIDX, Locations.PointIDX, Points.X, Points.Y FROM Locations LEFT JOIN Points ON Locations.PointIDX = Points.PointIDX WHERE Locations.isPoint = '1'")
+  allAreas=dbGetQuery(leakyDB,"SELECT * FROM Locations LEFT JOIN Areas ON Locations.areaIDX = Areas.areaIDX WHERE Locations.isPoint = '0'")
+  
   writeVECT(SDF=sp::SpatialPointsDataFrame(coords=allPoints[,c("X","Y")],data=allPoints[,c("locationIDX","pointIDX")]),
             vname="allPoints",v.in.ogr_flags = c("o","overwrite","quiet"))
   
@@ -580,6 +582,20 @@ inWatershed=function(watershedIDs){
     locIdxInWshed=grassTableToDF( execGRASS("v.db.select",map="ptsInWshed",intern = T) )$locationIDX
     if(length(locIdxInWshed)>0){
       dbExecute(leakyDB,paste0("UPDATE Locations SET watershedID = '",watershedID,"' WHERE locationIDX IN (",paste(locIdxInWshed,collapse = ", "),")"))
+    }
+    for(i in 1:nrow(allAreas)){
+      thisLocationIDX=allAreas[i,"locationIDX"]
+      thisAreaPath=allAreas[i,"fileName"]
+      execGRASS("v.in.ogr",input=thisAreaPath,output="thisArea",flags=c("overwrite","quiet"))
+      thisArea=sum(round(grassTableToDF(execGRASS("v.report",map="thisArea",option="area",intern=T))$area))
+      wshedArea=sum(round(grassTableToDF(execGRASS("v.report",map="watershedArea",option="area",intern=T))$area))
+      
+      execGRASS("v.overlay",ainput="watershedArea",binput="thisArea",output="thisAreaInWshed",operator="not",flags=c("overwrite","t","quiet"))
+      wshedAreaLessThisArea=sum(round(grassTableToDF(execGRASS("v.report",map="thisAreaInWshed",option="area",intern=T))$area))
+      
+      if((wshedArea-wshedAreaLessThisArea)>thisArea/2){
+        dbExecute(leakyDB,paste0("UPDATE Locations SET watershedID = '",watershedID,"' WHERE locationIDX = '",thisLocationIDX,"'"))
+      }
     }
   }
 }

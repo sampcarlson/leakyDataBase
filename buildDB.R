@@ -171,8 +171,8 @@ addData(morph,
         inEPSG=4326,
         streamSnapDistCells=50)
 
-################----------------------Whol&beckman 2012 data-----------------------
-morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSVOnly.csv")
+################----------------------Whol&beckman 2014 data-----------------------
+morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSV_GC.csv")
 morph$slopeDeg = atan(morph$slope) * (180 / pi)
 morph$JamsPerKm=morph$jam.count/(morph$length/1000)
 morph$areaName=paste0(morph$reach,morph$id)
@@ -193,7 +193,7 @@ morph$dateTime=as.Date("2012/8/1")
 morph$QCStatusOK=T
 addData(morph,
         batchName="Wohl Beckman 2014",
-        batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSVOnly.csv",
+        batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSV_GC.csv",
         inEPSG=4326,
         streamSnapDistCells=50,
         addMidpoint=F)
@@ -206,7 +206,7 @@ createStreamSegsDF()
 
 segs=read.csv("StreamSegs_slope_conf_xxl.csv")
 segs=melt(segs,id.vars=c("cat","X","Y"),
-          measure.vars = c("slope","heading_rad","elevRange_25","elevation","latRange_10","latRange_25","minLatRange_10","minLatRange_25","UAA","SPI"),
+          measure.vars = c("slope","heading_rad","elevation","latRange_10","latRange_25","minLatRange_10","minLatRange_25","UAA","SPI"),
           variable.name = "metric")
 name_unit_method_list=list(slope=list(old_name="slope",new_name="slope",unit="degrees",method="derived from DEM"),
                            hea=list(old_name="heading_rad",new_name="azimuth",unit="radians",method="derived from DEM"),
@@ -225,8 +225,6 @@ addData(segs,
         batchName = "DEM derived metrics calculated by Sam",
         batchSource="createStreamSegsDF()")
 
-###############----------add watershedID to locations---------------------################
-inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watersheds")$watershedID)
 
 
 ###############----------add area characteristics to segment points
@@ -242,3 +240,6 @@ characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,
 characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:53),newBatchName = "mean of segPoint values")
 characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:3,18:36,45:53),newBatchName = "mean of segPoint values")
 characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:53),newBatchName = "mean of segPoint values")
+
+###############----------add watershedID to locations---------------------################
+inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watersheds")$watershedID)
