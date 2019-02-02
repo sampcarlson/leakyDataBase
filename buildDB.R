@@ -8,6 +8,8 @@ source("C:/Users/sam/Documents/R/projects/rGrassTools/grassTools.r")
 source('~/R/projects/leakyDataBase/dbTools.R')
 source('~/R/projects/leakyDataBase/BuildHugeStreamNetwork.R')
 source('~/R/projects/leakyDataBase/widthWrangler.R')
+source('~/R/projects/leakyDataBase/createStreamSegsDF.R')
+
 
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
 
