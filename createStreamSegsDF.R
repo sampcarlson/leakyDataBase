@@ -1,4 +1,4 @@
-createStreamSegsDF=function(streamSegs=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs.shp")){
+createStreamSegsDF=function(streamSegsPath=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs.shp",)){
   c=2 #number of cores to use in parallel
   library(rgeos)
   library(raster)
@@ -6,10 +6,15 @@ createStreamSegsDF=function(streamSegs=shapefile("C:/Users/Sam/Documents/spatial
   library(snow)
   library(dplyr)
   
+  
   print("load stream segs shape...")
-  streamSegs=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs.shp")
+  streamSegs=shapefile(streamSegsPath)
   #as compared to Q, the data is stored in attributes, and the attributes are stored as data
   #field 'AUTO' is unique segment ID
+  
+  getCoordCount=function(subFeature){
+    return(nrow(subFeature@Lines[[1]]@coords))
+  }
   
   #drop segments shorter than 2 coordinate pairs
   streamSegs=subset(streamSegs,sapply(streamSegs@lines,getCoordCount)>1)
@@ -51,7 +56,18 @@ createStreamSegsDF=function(streamSegs=shapefile("C:/Users/Sam/Documents/spatial
     feature$heading_rad=headings
     return(feature)
   }
+  
+  
   print("calculate midpoints...")
+  cats=execGRASS("v.category",input="streamSegs",option="print",intern = T)
+  writeDF=data.frame(p="P",pid=cats,cats=cats,offset="50%")
+  write.table(writeDF,file="vSeg.txt",row.names=F,col.names = F,quote=F)
+  execGRASS("v.segment",input="streamSegs",output="segPoints",rules=paste(getwd(),"vSeg.txt",sep="/"),flags=c("overwrite","verbose"))
+  
+  execGRASS("v.out.ogr",input="segPoints",
+            output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/segPoints.shp",
+            format="ESRI_Shapefile",flags="overwrite")
+  
   segMidpoints=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/segPoints.shp")
   
   
@@ -144,6 +160,7 @@ createStreamSegsDF=function(streamSegs=shapefile("C:/Users/Sam/Documents/spatial
   #beginCluster(n=c)
   print("sample UAA...")
   #add buffer to ensure stream-representitive value  !!! Nope, change to sfd in r.watershed instead
+
   streamSegsDF$UAA=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/flowAccum_xxl.tif"),
                                    y=streamSegsDF[,c("X","Y")])
   #endCluster()

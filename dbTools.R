@@ -443,9 +443,9 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
   #add new data types for mean data
   oldDTs=dbGetQuery(leakyDB,paste0("SELECT * FROM DataTypes WHERE DataTypes.dataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
   newDTs=data.frame(oldIDX=oldDTs$dataTypeIDX)
-  newDTs$metric=paste0("mean_",oldDTs$metric)
+  newDTs$metric=paste0("med_",oldDTs$metric)
   newDTs$unit=oldDTs$unit
-  newDTs$method=paste("mean of dataTypeIDX",newDTs$oldIDX)
+  newDTs$method=paste("median of dataTypeIDX",newDTs$oldIDX)
   newDTs$newIDX=0
   #this is stupid, but oh well...
   for(i in 1:nrow(newDTs)){
@@ -458,6 +458,13 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
   aggMeanFun=function(x){
     if(is.numeric(x)){
       return(mean(x,na.rm=T))
+    } else {
+      return (x[1])
+    }
+  }
+  aggMedFun=function(x){
+    if(is.numeric(x)){
+      return(median(x,na.rm=T))
     } else {
       return (x[1])
     }
@@ -489,8 +496,8 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
     
     if(nrow(locData)>1){
       locData=plyr::rename(locData,replace=c("dataTypeIDX"="oldDataTypeIDX","dataIDX"="oldDataIDX"))
-      #aggregate
-      locData=aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX),FUN=aggMeanFun)
+      #aggregate w/ median
+      locData=aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX),FUN=aggMedFun)
       locData$locationIDX=thisLocation
       #join to new data types
       locData=left_join(locData,newDTs[,c("oldIDX","newIDX")],by=c("oldDataTypeIDX"="oldIDX"))
