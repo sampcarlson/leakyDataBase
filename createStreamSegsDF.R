@@ -1,4 +1,4 @@
-createStreamSegsDF=function(streamSegsPath=shapefile("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs.shp",)){
+createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/xxl_streamSegs.shp"){
   c=2 #number of cores to use in parallel
   library(rgeos)
   library(raster)
