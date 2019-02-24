@@ -30,9 +30,11 @@ buildHugeStreamNetwork=function(segLength){
             output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/segPoints.shp",
             format="ESRI_Shapefile",flags="overwrite")
   
+  execGRASS("r.slope.aspect",elevation="dem@PERMANENT",slope="slope",aspect="aspect")
   
-  
-  execGRASS("r.out.gdal",input="flowDir_xxl",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/flowDir_xxl.tif",nodata=0,format="GTiff",flags="overwrite")
+  execGRASS("r.out.gdal",input="slope",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/slope_xxl.tif",nodata=-999,format="GTiff",flags="overwrite")
+  execGRASS("r.out.gdal",input="aspect",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/aspect_xxl.tif",nodata=-999,format="GTiff",flags="overwrite")
+  execGRASS("r.out.gdal",input="flowDir_xxl",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/flowDir_xxl.tif",nodata=-999,format="GTiff",flags="overwrite")
   execGRASS("r.out.gdal",input="flowAccum_xxl",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/flowAccum_xxl.tif",nodata=0,format="GTiff",flags="overwrite")
   execGRASS("r.out.gdal",input="streams_rast",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/streamsRast_xxl.tif",nodata=0,format="GTiff",flags="overwrite")
   execGRASS("r.out.gdal",input="streamPower",output="C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/streamPower_xxl.tif",nodata=0,format="GTiff",flags="overwrite")

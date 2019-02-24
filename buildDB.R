@@ -13,8 +13,6 @@ source('~/R/projects/leakyDataBase/createStreamSegsDF.R')
 
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
 
-#rebuild stream network info - very long process w/ shorter seg lengths
-#buildHugeStreamNetwork(segLength=100)
 
 #set all defaults
 defaultFlags=list(inEPSG=32613,
@@ -32,8 +30,17 @@ dbListTables(leakyDB)
 lapply(dbListTables(leakyDB),FUN=delete_data,db=leakyDB)
 #run freshStart.sql in r project directory to fully trash and recreate db
 
-#init grass session for all DB processes:
+################------------define points representing every 100 m reach w/ reach slope data-----------------#############
+#go have lunch & a beer or two - this takes a while
+#rebuild stream network info - very long process w/ shorter seg lengths
+
+#buildHugeStreamNetwork(segLength=100)
+#createStreamSegsDF()
+
+#init grass session for all DB processes, and 
 InitGrass_byRaster(rasterPath="C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
+
+
 
 ############------------define watersheds----------###########
 wshedDefs=addWatershedDefinitions( wshedDefs=read.csv('C:/Users/sam/Documents/spatial/data/WatershedOutflowPoints/allWsheds_13n.csv'),
@@ -45,8 +52,10 @@ widths=wrangleWidths()
 names(widths)[names(widths)=="x"]="X"
 names(widths)[names(widths)=="y"]="Y"
 
+#widths$value[widths$variable=="channelCount"]=ceiling(widths$value[widths$variable=="channelCount"])
+
 widths$areaName=widths$Site
-widths$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/width/widthAreas/",widths$areaName,".shp")
+widths$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/width/widthAreasFine/",widths$areaName,".shp")
 
 
 writeDF=widths[,c("date","value","variable","unit","dataType","areaName","areaPath")]
@@ -80,7 +89,7 @@ name_unit_method_list=list(grad=list(old_name="gradient_deg",new_name="slope",un
                            confRat=list(old_name="confinementRatio",new_name="confinememtRatio",unit="m m^-1", method="Pfeiffer survey"),
                            confCat=list(old_name="confinementCategory",new_name="confinementCategory",unit="categorical",method="Pfeiffer survey"),
                            basArea=list(old_name="basalArea_m2.ha",new_name="basalArea",unit="m^2 ha^-1",method="Pfeiffer survey"),
-                           length=list(old_name="length_m",new_name="segmentLength",unit="m",method="Pfeiffer survey"),
+                           length=list(old_name="length_m",new_name="channelLength",unit="m",method="Pfeiffer survey"),
                            width=list(old_name="width_m",new_name="bankfullWidth",unit="m",method="Pfeiffer survey"),
                            woodLod=list(old_name="woodLoad_m3",new_name="woodVol",unit="m^3",method="Pfeiffer survey"),
                            coarse=list(old_name="coarseSed_m3",new_name="coarseSedVol",unit="m^3",method="Pfeiffer survey"),
@@ -125,7 +134,7 @@ addData(resp,
 
 
 #########---------------bridget morphology data----------------------###########
-morph=read.csv("morphForDB.csv")
+morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphForDB.csv")
 
 morph=morph[,c("Treatment","Reach","Network","NEW.Confinement","Mean.valley.width","Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools","Jams","Length..m.","WoodVolPerArea","Up.Y","Up.X","Down.Y","Down.X","totalSedC_Mg_100m_valley","Valley.length..m.","Wood.Surface.Area..m2.")]
 morph$areaName=morph$Reach
@@ -133,48 +142,50 @@ morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphShapes
 
 morph$meanNumberOfChannels=morph$Mean.total.width..m./morph$Mean.width.of.ind..Channel
 morph$totalChannelLength=morph$Length..m.*morph$meanNumberOfChannels
-morph$JamsPerKmChannel=morph$Jams * (1000/morph$Length..m.) / morph$meanNumberOfChannels
-morph$JamPoolsPerKmChannel=morph$JamsPerKmChannel*morph$Proportion.jams.with.pools
+morph$meanNumberOfChannels=ceiling(morph$meanNumberOfChannels)
 
-morph$totalSedOCPerKm=morph$totalSedC_Mg_100m_valley*1000*10*(morph$Valley.length..m./morph$Length..m.)/morph$meanNumberOfChannels
+morph$JamsPerKm=morph$Jams*(1000/morph$Length..m.)
+morph$JamPoolsPerKm=morph$JamsPerKm*morph$Proportion.jams.with.pools
 
-morph$Wood.Surface.Area..m2.=morph$Wood.Surface.Area..m2.* (1000/morph$Length..m.) / morph$meanNumberOfChannels
+morph$totalSedOCPerKm=morph$totalSedC_Mg_100m_valley*10/morph$Length..m.
+
+morph$Wood.Surface.Area..m2.=morph$Wood.Surface.Area..m2.* (1000/morph$Length..m.)
 
 morph=plyr::rename(morph,replace=c(Down.X="X",Down.Y="Y"))
 
 morph=melt(morph,id.vars=c("areaName","areaPath","X","Y"),
            measure.vars = c("Treatment","NEW.Confinement","Mean.valley.width",
                             "Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools",
-                            "Jams","Length..m.","WoodVolPerArea","meanNumberOfChannels","JamsPerKmChannel","JamPoolsPerKmChannel",
+                            "Jams","Length..m.","WoodVolPerArea","meanNumberOfChannels","JamsPerKm","JamPoolsPerKm",
                             "totalChannelLength","totalSedOCPerKm","Wood.Surface.Area..m2."),
            variable.name = "metric")
 
 name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",unit="categorical",method="Bridget morphology survey"),
                            conf=list(old_name="NEW.Confinement",new_name="confinement",unit="categorical",method="Bridget morphology survey"),
                            vw=list(old_name="Mean.valley.width",new_name="valleyWidth",unit="m",method="Bridget morphology survey"),
-                           cw=list(old_name="Mean.width.of.ind..Channel",new_name="bankfullWidth",unit="m",method="Bridget morphology survey"),
-                           tcw=list(old_name="Mean.total.width..m.",new_name="totalBankfullWidth",unit="m",method="Bridget morphology survey"),
+                           cw=list(old_name="Mean.width.of.ind..Channel",new_name="individualBankfullWidth",unit="m",method="Bridget morphology survey"),
+                           tcw=list(old_name="Mean.total.width..m.",new_name="bankfullWidth",unit="m",method="Bridget morphology survey"),
                            pjp=list(old_name="Proportion.jams.with.pools",new_name="jamPoolProportion",unit="jamPools/jam",method="Bridget morphology survey"),
                            jam=list(old_name="Jams",new_name="jamCount",unit="count",method="Bridget morphology survey"),
-                           len=list(old_name="Length..m.",new_name="segmentLength",unit="m",method="Bridget morphology survey"),
+                           len=list(old_name="Length..m.",new_name="channelLength",unit="m",method="Bridget morphology survey"),
                            wva=list(old_name="WoodVolPerArea",new_name="woodDepth",unit="m",method="Bridget morphology survey"),
-                           chc=list(old_name="meanNumberOfChannels",new_name="multiChannelCount",unit="count",method="Bridget morphology survey"),
-                           tcl=list(old_name="JamsPerKmChannel",new_name="jamsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
-                           jppk=list(old_name="JamPoolsPerKmChannel",new_name="jamPoolsPerKm",unit="count km^-1 channel^-1",method="Bridget morphology survey"),
-                           tcl=list(old_name="totalChannelLength",new_name="channelLength",unit="m",method="Bridget morphology survey"),
-                           sopk=list(old_name="totalSedOCPerKm",new_name="sedOCPerKm",unit = "Kg stream sediment C km^-1 channel^-1",method="Bridget morphology survey"),
+                           chc=list(old_name="meanNumberOfChannels",new_name="channelCount",unit="count",method="Bridget morphology survey"),
+                           tcl=list(old_name="JamsPerKm",new_name="jamsPerKm",unit="count km^-1",method="Bridget morphology survey"),
+                           jppk=list(old_name="JamPoolsPerKm",new_name="jamPoolsPerKm",unit="count km^-1",method="Bridget morphology survey"),
+                           tcl=list(old_name="totalChannelLength",new_name="totalChannelLength",unit="m",method="Bridget morphology survey"),
+                           sopk=list(old_name="totalSedOCPerKm",new_name="sedOCPerKm",unit = "Kg stream sediment C km^-1",method="Bridget morphology survey"),
                            wsa=list(old_name="Wood.Surface.Area..m2.",new_name="woodSurfaceArea",unit="m^2",method="Bridget morphology survey"))
 morph=addUnitMethod(morph,name_unit_method_list)
 morph$dateTime=as.Date("2015/8/1")
 morph$QCStatusOK=T
 addData(morph,
         batchName="Bridget Geomorph Survey",
-        batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/Geomorph_sites_and_data_bridget.csv",
+        batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphForDB.csv",
         inEPSG=4326,
         streamSnapDistCells=50)
 
 ################----------------------Whol&beckman 2014 data-----------------------
-morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSV_GC.csv")
+morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSV_GC_2_13.csv")
 morph$slopeDeg = atan(morph$slope) * (180 / pi)
 morph$JamsPerKm=morph$jam.count/(morph$length/1000)
 morph$areaName=paste0(morph$reach,morph$id)
@@ -202,23 +213,23 @@ addData(morph,
 
 
 
-################------------add points representing every 100 m reach w/ reach slope data-----------------#############
-#go have lunch & a beer or two - this takes a while
-createStreamSegsDF()
-
+#####################---------------------add DEM derived points------------------------
 segs=read.csv("StreamSegs_slope_conf_xxl.csv")
 segs=melt(segs,id.vars=c("cat","X","Y"),
-          measure.vars = c("slope","heading_rad","elevation","latRange_10","latRange_25","minLatRange_10","minLatRange_25","UAA","SPI"),
+          measure.vars = c("slope","heading_rad","elevation","latRange_10","latRange_25","minLatRange_10","minLatRange_25","UAA","SPI","valleyWidth_05","valleyWidth_1","slope_25"),
           variable.name = "metric")
 name_unit_method_list=list(slope=list(old_name="slope",new_name="slope",unit="degrees",method="derived from DEM"),
                            hea=list(old_name="heading_rad",new_name="azimuth",unit="radians",method="derived from DEM"),
                            elev=list(old_name="elevation",new_name="elevation",unit="m",method="derived from DEM"),
                            l1=list(old_name="latRange_10",new_name="latRange_10",unit="meters",method="derived from DEM"),
                            l2=list(old_name="latRange_25",new_name="latRange_25",unit="meters",method="derived from DEM"),
+                           s2=list(old_name="slope_25",new_name="slope_25",unit="degrees",method="derived from DEM"),
                            ml1=list(old_name="minLatRange_10",new_name="minLatRange_10",unit="meters",method="derived from DEM"),
                            ml2=list(old_name="minLatRange_25",new_name="minLatRange_25",unit="meters",method="derived from DEM"),
                            ua=list(old_name="UAA",new_name="UAA",unit="km^2",method="derived from DEM"),
-                           spi=list(old_name="SPI",new_name="SPI",unit="index",method="derived from DEM"))
+                           spi=list(old_name="SPI",new_name="SPI",unit="index",method="derived from DEM"),
+                           vw=list(old_name="valleyWidth_05",new_name="valleyWidth_05",unit="meters",method="derived from DEM"),
+                           vw=list(old_name="valleyWidth_1",new_name="valleyWidth_1",unit="meters",method="derived from DEM"))
 segs=addUnitMethod(segs,name_unit_method_list)
 
 segs$dateTime=as.Date("2018/12/1")
@@ -233,15 +244,22 @@ addData(segs,
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
 
-characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:3,18:44))
+
+characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:6,21:47))
 
 
 ###############----------add many metrics to areas
 
-characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:3,18:21,37:53),newBatchName="mean of segPoint values")
-characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:3,22:53),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:3,18:36,45:53),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(18:53),newBatchName = "mean of segPoint values")
+# characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:5,24:58),newBatchName = "mean of segPoint values")
+# characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:5,20:23,39:58),newBatchName="mean of segPoint values")
+# characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:5,20:38,47:58),newBatchName = "mean of segPoint values")
+# characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(20:58),newBatchName = "mean of segPoint values")
+
+characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:59),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:59),newBatchName="mean of segPoint values")
+characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:59),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(1:59),newBatchName = "mean of segPoint values")
+
 
 ###############----------add watershedID to locations---------------------################
 inWatershed(watershedIDs = dbGetQuery(leakyDB,"SELECT WatershedID FROM watersheds")$watershedID)

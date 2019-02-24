@@ -18,20 +18,13 @@ wrangleWidths=function(){
   
   #prepare Width data...
   
-  rawWidth=read_csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/CoWidths.csv")[-1,]
-  rawSites=read_csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/widthSites.csv")
-  
-  #check that all width sites are in sites list:
-  all((unique(rawWidth$Site) %in% unique(rawSites$Sites)))
-  
+  rawWidth=read_csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/CoWidths_fine.csv")[-1,]
+
   #add dep area as pct, and remove extra stuff
   keepNames=c("Date","Site","Transect","Wetted width","Bank-full width","Depositional area units","Channel type","Device","Who","Comments","DepArea_pct","Meters from ZERO pt")
   widths=calcDepPct(rawWidth)[keepNames]
   widths$ReachName=widths$Site
-  widths$PointName=paste(widths$ReachName,widths$Transect,sep=' #')
-  widths=as.data.frame(left_join(widths,rawSites[c("Sites","X","Y","Network")],by=c("ReachName" = "Sites")))
   
-  widths$`Meters from ZERO pt`=NULL
   w_long=as.tibble(melt(widths,measure.vars=c("Wetted width","Bank-full width","DepArea_pct")))
   w_long$value=as.numeric(w_long$value)
   w_long=w_long[!is.na(w_long$value),]
@@ -46,7 +39,6 @@ wrangleWidths=function(){
   
   widths=as.data.frame(w_long)
   
-  widths=widths[complete.cases(widths[,c("X","Y")]),]
   widths$variable=as.character(widths$variable)
   widths$variable[widths$variable=="Wetted width"]="wettedWidth"
   widths$variable[widths$variable=="Bank-full width"]="bankfullWidth"
@@ -56,16 +48,14 @@ wrangleWidths=function(){
   
   aggDefs=stats::aggregate(widths[,c("Site","variable")],by=list(s=widths$Site,v=widths$variable), FUN=first)[,c("Site","variable")]
   
-  aggWidths=data.frame(Site=aggDefs$Site,variable=aggDefs$variable,x=0,y=0,value=0,dataType="",unit="",date="",stringsAsFactors = F)
+  aggWidths=data.frame(Site=aggDefs$Site,variable=aggDefs$variable,value=0,dataType="",unit="",date="",stringsAsFactors = F)
   for(r in 1:nrow(aggWidths)){
     thisData=widths[(widths$Site==aggWidths$Site[r] & widths$variable==aggWidths$variable[r]),]
     thisData$variable=as.character(thisData$variable)
     thisData$value=as.numeric(thisData$value)
     thisData$dataType=as.character(thisData$dataType)
     thisData$unit=as.character(thisData$unit)
-    
-    aggWidths$x[r]=thisData$X[1]
-    aggWidths$y[r]=thisData$Y[1]
+
     
     if(aggWidths$variable[r] %in% c("wettedWidth","bankfullWidth")){
       aggWidths$value[r]=mean(stats::aggregate(thisData$value,by=list(t=thisData$Transect),FUN=sum)$x)
@@ -80,7 +70,23 @@ wrangleWidths=function(){
     
   }
   
+  channelCount=aggWidths[aggWidths$variable=="wettedWidth",]
+  for(r in 1:nrow(channelCount)){
+    thisData=widths[(widths$Site==channelCount$Site[r] & widths$variable==channelCount$variable[r]),]
+    channelCount$value[r]=nrow(thisData)/length(unique(thisData$Transect))
+  }
+  channelCount$variable="channelCount"
+  channelCount$unit="count"
+  channelCount$dataType="observation"
   
+  aggWidths=rbind(aggWidths,channelCount)
+  
+  widthLandUse=rawWidth[c("Site","Land Use")]
+  widthLandUse=aggregate.data.frame(widthLandUse,by=list(Site=widthLandUse$Site),FUN=first)
+  widthLandUse=data.frame(Site=widthLandUse$Site,variable = "landUse",value=widthLandUse$`Land Use`,dataType="Ellen Map",unit="categorical",date="2015-09-15")
+  
+  
+  aggWidths=rbind(aggWidths,widthLandUse)
   return(aggWidths)
 }
 
@@ -105,27 +111,20 @@ widthAreaLengths=function(){
   
   #prepare Width data...
   
-  rawWidth=read_csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/CoWidths.csv")[-1,]
-  rawSites=read_csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/widthSites.csv")
-  
-  #check that all width sites are in sites list:
-  all((unique(rawWidth$Site) %in% unique(rawSites$Sites)))
-  
+  rawWidth=read_csv("C:/Users/Sam/Documents/LeakyRivers/Data/width/CoWidths_fine.csv")[-1,]
+   
   #add dep area as pct, and remove extra stuff
   keepNames=c("Date","Site","Transect","Wetted width","Bank-full width","Depositional area units","Channel type","Device","Who","Comments","DepArea_pct","Meters from ZERO pt")
   widths=calcDepPct(rawWidth)[keepNames]
   widths$ReachName=widths$Site
-  widths$PointName=paste(widths$ReachName,widths$Transect,sep=' #')
   widths=left_join(widths,rawSites[c("Sites","X","Y","Network")],by=c("ReachName" = "Sites"))
   widths$Site=as.character(widths$Site)
   
   siteLengthDF=data.frame(Site=unique(widths$Site),X=0,Y=0,length=0)
   for(r in 1:nrow(siteLengthDF)){
-    thisSiteData=widths[widths$Site==siteLengthDF$Site[r],c("Transect","Meters from ZERO pt","X","Y")]
+    thisSiteData=widths[widths$Site==siteLengthDF$Site[r],c("Transect","Meters from ZERO pt")]
     thisLength=sum(stats::aggregate(thisSiteData,by=list(t=thisSiteData$Transect),FUN=mean)$`Meters from ZERO pt`)
     siteLengthDF$length[r]=thisLength
-    siteLengthDF$X[r]=thisSiteData$X[1]
-    siteLengthDF$Y[r]=thisSiteData$Y[1]
   }
   return(siteLengthDF)
 }

@@ -5,7 +5,7 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
   library(parallel)
   library(snow)
   library(dplyr)
-  
+  library(pbapply)
   
   print("load stream segs shape...")
   streamSegs=shapefile(streamSegsPath)
@@ -19,8 +19,11 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
   #drop segments shorter than 2 coordinate pairs
   streamSegs=subset(streamSegs,sapply(streamSegs@lines,getCoordCount)>1)
   
-  #for debug:
+  ##################-----------------debug switch:--------------------#############
   #streamSegs=subset(streamSegs,c(rep(T,100),rep(F,10455)))
+  
+  
+  #############-----------meat----------------
   print("get seg length...")
   #Function (below) from rgeos works
   streamSegs$length=gLength(streamSegs,byid=T)
@@ -87,6 +90,10 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
     ma=max(...,na.rm = T)
     return(ma-mi)
   }
+  mean_area=function(...){
+    return(mean(...,na.rm = T))
+  }
+  
   dem_rast=raster("C:/Users/Sam/Documents/spatial/data/dem/leakyRivers/trim/LeakyRiversDEM_rectTrim_knobFix.tif")
   # print("sample elev range around midpoints...")
   # beginCluster(n=c)
@@ -96,6 +103,21 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
   #                                           fun=rng)
   # endCluster()
   # 
+  
+  print("sample slope around points...")
+  slope_rast=raster("C:/Users/Sam/Documents/spatial/r_workspaces/LeakyDB/slope_xxl.tif")
+
+  beginCluster(n=c)
+  streamSegsDF$slope_25=raster::extract(x=slope_rast,
+                                        y=streamSegs,
+                                        buffer=25,
+                                        fun=mean,
+                                        small=TRUE,
+                                        na.rm=TRUE)
+  endCluster()
+
+  
+  
   print("sample elevation")
   streamSegsDF$elevation=raster::extract(x=dem_rast,
                                          y=streamSegsDF[,c("X","Y")])
@@ -112,11 +134,11 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
     
     latCoords=calcLatCoords(streamSegsDF,conf_range)
     #beginCluster(n=c) #not as intensive as the buffered extraction above, but still benefits from parallel
-    left_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))
-    right_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))
+    left_d_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))-streamSegsDF$elevation
+    right_d_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))-streamSegsDF$elevation
     #endCluster()
-    latRange=mapply(rng,left_elev,right_elev,streamSegsDF$elevation)
-    
+    latRange=pmax(pmax(0,left_d_elev,na.rm=T),pmax(0,right_d_elev,na.rm=T),na.rm=T)
+    #latRange=mapply(rng,left_elev,right_elev,streamSegsDF$elevation)
     
     return(latRange)
   }
@@ -133,14 +155,51 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
     
     latCoords=calcLatCoords(streamSegsDF,conf_range)
     #beginCluster(n=c) #not as intensive as the buffered extraction above, but still benefits from parallel
-    left_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))
-    right_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))
-    #endCluster()
-    latRangeRight=mapply(rng,right_elev,streamSegsDF$elevation)
-    latRangeLeft=mapply(rng,left_elev,streamSegsDF$elevation)
-    latRangeMin=mapply(min,latRangeRight,latRangeLeft)
     
+    left_d_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))-streamSegsDF$elevation
+    right_d_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))-streamSegsDF$elevation
+    #endCluster()
+    latRangeMin=pmin(pmax(0,left_d_elev,na.rm = T),pmax(0,right_d_elev,na.rm=T),na.rm = T)
+    
+    
+    # left_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))-
+    # right_elev=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))
+    # #endCluster()
+    # latRangeRight=mapply(rng,right_elev,streamSegsDF$elevation)
+    # latRangeLeft=mapply(rng,left_elev,streamSegsDF$elevation)
+    # latRangeMin=mapply(min,latRangeRight,latRangeLeft)
+    # 
     return(latRangeMin)
+  }
+  
+  getDistToRelief=function(streamSegsDF,relief){
+    
+    calcLatCoords=function(segDF,thisRange){
+      left_y=(sin(segDF$heading_rad+(pi/2))*thisRange)+segDF$Y
+      left_x=(cos(segDF$heading_rad+(pi/2))*thisRange)+segDF$X
+      right_y=(sin(segDF$heading_rad-(pi/2))*thisRange)+segDF$Y
+      right_x=(cos(segDF$heading_rad-(pi/2))*thisRange)+segDF$X
+      return(list(left_y=left_y,left_x=left_x,right_y=right_y,right_x=right_x))
+    }
+    
+    
+    getSegDistToRelief=function(thisSeg,relief){
+      thisSeg=data.frame(t(thisSeg))
+      sampleDistances=seq(from=5,to=100,by=5)
+      latCoords=calcLatCoords(thisSeg,sampleDistances)
+      left_change=raster::extract(x=dem_rast,y=data.frame(X=latCoords$left_x,Y=latCoords$left_y))-thisSeg$elevation
+      right_change=raster::extract(x=dem_rast,y=data.frame(X=latCoords$right_x,Y=latCoords$right_y))-thisSeg$elevation
+      left_change[length(left_change)]=relief+1
+      right_change[length(right_change)]=relief+1
+      left_dist=sampleDistances[min(which(left_change>relief))]
+      right_dist=sampleDistances[min(which(right_change>relief))]
+      return(max(left_dist,right_dist))
+    }
+    
+
+    minDistToRelief=pbapply(streamSegsDF,relief=relief,MARGIN=1,FUN=getSegDistToRelief)
+    
+    return(minDistToRelief)
   }
   
   print("sample lat range 10...")
@@ -151,7 +210,14 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
   streamSegsDF$latRange_25=getLateralElevRange(streamSegsDF,conf_range = 25)
   streamSegsDF$minLatRange_25=getMinLateralElevRange(streamSegsDF,conf_range = 25)
   
-  
+  relief=0.5
+  print(paste("calc min distance to elev increase of",relief))
+  streamSegsDF$valleyWidth_05=getDistToRelief(streamSegsDF,relief)
+
+  relief=1
+  print(paste("calc min distance to elev increase of",relief))
+  streamSegsDF$valleyWidth_1=getDistToRelief(streamSegsDF,relief)
+    
   naMax=function(...){
     return(max(..., na.rm=T))
   }
@@ -160,7 +226,7 @@ createStreamSegsDF=function(streamSegsPath="C:/Users/Sam/Documents/spatial/r_wor
   #beginCluster(n=c)
   print("sample UAA...")
   #add buffer to ensure stream-representitive value  !!! Nope, change to sfd in r.watershed instead
-
+  
   streamSegsDF$UAA=raster::extract(x=raster("C:/Users/Sam/Documents/spatial/r_workspaces/leakyDB/flowAccum_xxl.tif"),
                                    y=streamSegsDF[,c("X","Y")])
   #endCluster()

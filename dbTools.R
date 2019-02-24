@@ -447,6 +447,7 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
   newDTs$unit=oldDTs$unit
   newDTs$method=paste("median of dataTypeIDX",newDTs$oldIDX)
   newDTs$newIDX=0
+  
   #this is stupid, but oh well...
   for(i in 1:nrow(newDTs)){
     newDTs$newIDX[i]=writeIfNew(newDTs[i,c("metric","unit","method")],"DataTypes",compareNames = c("metric","unit","method"),idxColName="dataTypeIDX")
@@ -456,14 +457,17 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
   batchIDX=addBatch(newBatchName,"characterizeAreas()")
   
   aggMeanFun=function(x){
-    if(is.numeric(x)){
+    if(sum(is.na(as.numeric(x)))==0){
+      x=as.numeric(x)
       return(mean(x,na.rm=T))
     } else {
       return (x[1])
     }
   }
+  
   aggMedFun=function(x){
-    if(is.numeric(x)){
+    if(sum(is.na(as.numeric(x)))==0){
+      x=as.numeric(x)
       return(median(x,na.rm=T))
     } else {
       return (x[1])
@@ -493,18 +497,21 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
     locIDXs=grassTableToDF( execGRASS("v.db.select",map="ptsInArea",intern = T) )$locationIDX
     
     locData=dbGetQuery(leakyDB,paste0("SELECT * FROM Data WHERE locationIDX IN (",paste(locIDXs,collapse=", "),") AND DataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
-    
     if(nrow(locData)>1){
       locData=plyr::rename(locData,replace=c("dataTypeIDX"="oldDataTypeIDX","dataIDX"="oldDataIDX"))
       #aggregate w/ median
-      locData=aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX),FUN=aggMedFun)
+      #locData=stats::aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX),FUN=aggMeanFun)
+      locData=stats::aggregate(value~oldDataTypeIDX,data=locData,FUN=aggMeanFun,na.action=na.omit)
+      
       locData$locationIDX=thisLocation
       #join to new data types
       locData=left_join(locData,newDTs[,c("oldIDX","newIDX")],by=c("oldDataTypeIDX"="oldIDX"))
       locData$dataTypeIDX=locData$newIDX
       
       #write to DB
-      locData$dataIDX=seq(from=getNewIDX("Data","dataIDX"),by=1,length.out=length(locData$dtIDX))
+      locData$dataIDX=seq(from=getNewIDX("Data","dataIDX"),by=1,length.out=length(locData$newIDX))
+      locData$dateTime="2019/1/1"
+      locData$QCStatusOK=T
       newData=locData[,c("dataIDX","dataTypeIDX","locationIDX","dateTime","value","QCStatusOK")]
       newData$batchIDX=batchIDX
       #this is stupid, but oh well...
