@@ -56,6 +56,7 @@ wrangleWidths=function(){
     thisData$dataType=as.character(thisData$dataType)
     thisData$unit=as.character(thisData$unit)
 
+
     
     if(aggWidths$variable[r] %in% c("wettedWidth","bankfullWidth")){
       aggWidths$value[r]=mean(stats::aggregate(thisData$value,by=list(t=thisData$Transect),FUN=sum)$x)

@@ -3,12 +3,13 @@ library(tidyverse)
 library(plyr)
 library(reshape2)
 library(rgrass7)
-source("dbTools.R")
+#source("dbTools.R")
 source("C:/Users/sam/Documents/R/projects/rGrassTools/grassTools.r")
 source('~/R/projects/leakyDataBase/dbTools.R')
 source('~/R/projects/leakyDataBase/BuildHugeStreamNetwork.R')
 source('~/R/projects/leakyDataBase/widthWrangler.R')
 source('~/R/projects/leakyDataBase/createStreamSegsDF.R')
+source('~/R/projects/leakyDataBase/widthWrangler_byTransect.R')
 
 
 leakyDB=dbConnect(SQLite(),"C:/Users/sam/Documents/LeakyRivers/Data/sqLiteDatabase/LeakyDB.db")
@@ -52,7 +53,15 @@ widths=wrangleWidths()
 names(widths)[names(widths)=="x"]="X"
 names(widths)[names(widths)=="y"]="Y"
 
-#widths$value[widths$variable=="channelCount"]=ceiling(widths$value[widths$variable=="channelCount"])
+cc=countChannelsByTransect()
+cc$variable="channelCountByTransect"
+cc$dataType="observation"
+cc$unit="count"
+cc$date="2015-09-15"
+cc=plyr::rename(cc,replace=c("x"="value"))
+cc$Transect=NULL
+
+widths=rbind(widths,cc)
 
 widths$areaName=widths$Site
 widths$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/width/widthAreasFine/",widths$areaName,".shp")
@@ -66,50 +75,51 @@ addData(writeDF,
         batchName="mikeSamWidths",
         batchSource="widthWrangler.R",
         inEPSG=4326,compareData=F,
-        addMidpoint=F)
+        addMidpoint=T,
+        streamSnapDistCells=50)
 
 
 ###############---------------add pfeiffer thesis data####################---------------------
-pfeiffer=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/pfeiffer_thesis_data.csv",stringsAsFactors = F)
-
-pfeiffer$x=sapply(pfeiffer$coordinates,splitOnComma,which='x')
-pfeiffer$y=sapply(pfeiffer$coordinates,splitOnComma,which='y')
-
-pfeiffer$woodPerArea=pfeiffer$woodLoad_m3 /(pfeiffer$length_m *pfeiffer$width_m )
-pfeiffer$coarseSedPerArea=pfeiffer$coarseSed_m3 /(pfeiffer$length_m *pfeiffer$width_m )
-pfeiffer$fineSedPerArea=pfeiffer$fineSed_m3 /(pfeiffer$length_m *pfeiffer$width_m )
-pfeiffer$pomPerArea=pfeiffer$pom_m3 /(pfeiffer$length_m *pfeiffer$width_m )
-pfeiffer=melt(pfeiffer,id.vars = c("Name","x","y"),measure.vars = c("gradient_deg","confinementRatio","confinementCategory",
-                                                                    "basalArea_m2.ha","length_m","width_m","woodLoad_m3","coarseSed_m3",
-                                                                    "fineSed_m3","pom_m3","woodPerArea","coarseSedPerArea",
-                                                                    "fineSedPerArea","pomPerArea"),
-              variable.name = "metric")
-
-name_unit_method_list=list(grad=list(old_name="gradient_deg",new_name="slope",unit="degrees",method="Pfeiffer survey"),
-                           confRat=list(old_name="confinementRatio",new_name="confinememtRatio",unit="m m^-1", method="Pfeiffer survey"),
-                           confCat=list(old_name="confinementCategory",new_name="confinementCategory",unit="categorical",method="Pfeiffer survey"),
-                           basArea=list(old_name="basalArea_m2.ha",new_name="basalArea",unit="m^2 ha^-1",method="Pfeiffer survey"),
-                           length=list(old_name="length_m",new_name="channelLength",unit="m",method="Pfeiffer survey"),
-                           width=list(old_name="width_m",new_name="bankfullWidth",unit="m",method="Pfeiffer survey"),
-                           woodLod=list(old_name="woodLoad_m3",new_name="woodVol",unit="m^3",method="Pfeiffer survey"),
-                           coarse=list(old_name="coarseSed_m3",new_name="coarseSedVol",unit="m^3",method="Pfeiffer survey"),
-                           fine=list(old_name="fineSed_m3",new_name="fineSedVol",unit="m^3",method="Pfeiffer survey"),
-                           pom=list(old_name="pom_m3",new_name="pomVol",unit="m^3",method="Pfeiffer survey"),
-                           arealWood=list(old_name="woodPerArea",new_name="woodDepth",unit="m",method="Pfeiffer survey"),
-                           arealCoarse=list(old_name="coarseSedPerArea",new_name="coarseDepth",unit="m",method="Pfeiffer survey"),
-                           arealFine=list(old_name="fineSedPerArea",new_name="fineDepth",unit="m",method="Pfeiffer survey"),
-                           arealPom=list(old_name="pomPerArea",new_name="pomDepth",unit="m",method="Pfeiffer survey"))
-
-pfeiffer=addUnitMethod(pfeiffer,name_unit_method_list)
-pfeiffer$QCStatusOK=TRUE
-pfeiffer=plyr::rename(pfeiffer,replace=c(x="X",y="Y"))
-pfeiffer$dateTime=as.Date("2016/8/1")
-addData(pfeiffer,
-        batchName = "Pfeiffer Thesis Data",
-        batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/pfeiffer_thesis_data.csv",
-        inEPSG=4326,
-        streamSnapDistCells=50)
-
+# pfeiffer=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/pfeiffer_thesis_data.csv",stringsAsFactors = F)
+# 
+# pfeiffer$x=sapply(pfeiffer$coordinates,splitOnComma,which='x')
+# pfeiffer$y=sapply(pfeiffer$coordinates,splitOnComma,which='y')
+# 
+# pfeiffer$woodPerArea=pfeiffer$woodLoad_m3 /(pfeiffer$length_m *pfeiffer$width_m )
+# pfeiffer$coarseSedPerArea=pfeiffer$coarseSed_m3 /(pfeiffer$length_m *pfeiffer$width_m )
+# pfeiffer$fineSedPerArea=pfeiffer$fineSed_m3 /(pfeiffer$length_m *pfeiffer$width_m )
+# pfeiffer$pomPerArea=pfeiffer$pom_m3 /(pfeiffer$length_m *pfeiffer$width_m )
+# pfeiffer=melt(pfeiffer,id.vars = c("Name","x","y"),measure.vars = c("gradient_deg","confinementRatio","confinementCategory",
+#                                                                     "basalArea_m2.ha","length_m","width_m","woodLoad_m3","coarseSed_m3",
+#                                                                     "fineSed_m3","pom_m3","woodPerArea","coarseSedPerArea",
+#                                                                     "fineSedPerArea","pomPerArea"),
+#               variable.name = "metric")
+# 
+# name_unit_method_list=list(grad=list(old_name="gradient_deg",new_name="slope",unit="degrees",method="Pfeiffer survey"),
+#                            confRat=list(old_name="confinementRatio",new_name="confinememtRatio",unit="m m^-1", method="Pfeiffer survey"),
+#                            confCat=list(old_name="confinementCategory",new_name="confinementCategory",unit="categorical",method="Pfeiffer survey"),
+#                            basArea=list(old_name="basalArea_m2.ha",new_name="basalArea",unit="m^2 ha^-1",method="Pfeiffer survey"),
+#                            length=list(old_name="length_m",new_name="channelLength",unit="m",method="Pfeiffer survey"),
+#                            width=list(old_name="width_m",new_name="bankfullWidth",unit="m",method="Pfeiffer survey"),
+#                            woodLod=list(old_name="woodLoad_m3",new_name="woodVol",unit="m^3",method="Pfeiffer survey"),
+#                            coarse=list(old_name="coarseSed_m3",new_name="coarseSedVol",unit="m^3",method="Pfeiffer survey"),
+#                            fine=list(old_name="fineSed_m3",new_name="fineSedVol",unit="m^3",method="Pfeiffer survey"),
+#                            pom=list(old_name="pom_m3",new_name="pomVol",unit="m^3",method="Pfeiffer survey"),
+#                            arealWood=list(old_name="woodPerArea",new_name="woodDepth",unit="m",method="Pfeiffer survey"),
+#                            arealCoarse=list(old_name="coarseSedPerArea",new_name="coarseDepth",unit="m",method="Pfeiffer survey"),
+#                            arealFine=list(old_name="fineSedPerArea",new_name="fineDepth",unit="m",method="Pfeiffer survey"),
+#                            arealPom=list(old_name="pomPerArea",new_name="pomDepth",unit="m",method="Pfeiffer survey"))
+# 
+# pfeiffer=addUnitMethod(pfeiffer,name_unit_method_list)
+# pfeiffer$QCStatusOK=TRUE
+# pfeiffer=plyr::rename(pfeiffer,replace=c(x="X",y="Y"))
+# pfeiffer$dateTime=as.Date("2016/8/1")
+# addData(pfeiffer,
+#         batchName = "Pfeiffer Thesis Data",
+#         batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/pfeiffer_thesis_data.csv",
+#         inEPSG=4326,
+#         streamSnapDistCells=50)
+# 
 
 ############--------------bob resp data---------------######
 resp=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/resp/bob_respRates_simpleSites.csv",colClasses="character")
@@ -136,28 +146,29 @@ addData(resp,
 #########---------------bridget morphology data----------------------###########
 morph=read.csv("C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphForDB.csv")
 
-morph=morph[,c("Treatment","Reach","Network","NEW.Confinement","Mean.valley.width","Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools","Jams","Length..m.","WoodVolPerArea","Up.Y","Up.X","Down.Y","Down.X","totalSedC_Mg_100m_valley","Valley.length..m.","Wood.Surface.Area..m2.")]
+morph=morph[,c("Treatment","Reach","Network","NEW.Confinement","Mean.valley.width","Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools","Jams","Length..m.","WoodVolPerArea","Up.Y","Up.X","Down.Y","Down.X","totalSedC_Mg_100m_valley","Valley.length..m.")]
 morph$areaName=morph$Reach
 morph$areaPath=paste0("C:/Users/Sam/Documents/LeakyRivers/Data/morph/morphShapes/",morph$areaName,".shp")
 
+#I'm not sure if I trust this, leaving it in for now...
 morph$meanNumberOfChannels=morph$Mean.total.width..m./morph$Mean.width.of.ind..Channel
-morph$totalChannelLength=morph$Length..m.*morph$meanNumberOfChannels
-morph$meanNumberOfChannels=ceiling(morph$meanNumberOfChannels)
+
+#morph$totalChannelLength=morph$Length..m.*morph$meanNumberOfChannels
+
+#morph$meanNumberOfChannels=round(morph$meanNumberOfChannels)
 
 morph$JamsPerKm=morph$Jams*(1000/morph$Length..m.)
 morph$JamPoolsPerKm=morph$JamsPerKm*morph$Proportion.jams.with.pools
 
 morph$totalSedOCPerKm=morph$totalSedC_Mg_100m_valley*10/morph$Length..m.
 
-morph$Wood.Surface.Area..m2.=morph$Wood.Surface.Area..m2.* (1000/morph$Length..m.)
-
 morph=plyr::rename(morph,replace=c(Down.X="X",Down.Y="Y"))
 
 morph=melt(morph,id.vars=c("areaName","areaPath","X","Y"),
            measure.vars = c("Treatment","NEW.Confinement","Mean.valley.width",
                             "Mean.width.of.ind..Channel","Mean.total.width..m.","Proportion.jams.with.pools",
-                            "Jams","Length..m.","WoodVolPerArea","meanNumberOfChannels","JamsPerKm","JamPoolsPerKm",
-                            "totalChannelLength","totalSedOCPerKm","Wood.Surface.Area..m2."),
+                            "Jams","Length..m.","WoodVolPerArea","JamsPerKm","JamPoolsPerKm",
+                            "totalSedOCPerKm","meanNumberOfChannels"),
            variable.name = "metric")
 
 name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",unit="categorical",method="Bridget morphology survey"),
@@ -170,11 +181,10 @@ name_unit_method_list=list(treat=list(old_name="Treatment",new_name="landUse",un
                            len=list(old_name="Length..m.",new_name="channelLength",unit="m",method="Bridget morphology survey"),
                            wva=list(old_name="WoodVolPerArea",new_name="woodDepth",unit="m",method="Bridget morphology survey"),
                            chc=list(old_name="meanNumberOfChannels",new_name="channelCount",unit="count",method="Bridget morphology survey"),
-                           tcl=list(old_name="JamsPerKm",new_name="jamsPerKm",unit="count km^-1",method="Bridget morphology survey"),
+                           jpk=list(old_name="JamsPerKm",new_name="jamsPerKm",unit="count km^-1",method="Bridget morphology survey"),
                            jppk=list(old_name="JamPoolsPerKm",new_name="jamPoolsPerKm",unit="count km^-1",method="Bridget morphology survey"),
-                           tcl=list(old_name="totalChannelLength",new_name="totalChannelLength",unit="m",method="Bridget morphology survey"),
-                           sopk=list(old_name="totalSedOCPerKm",new_name="sedOCPerKm",unit = "Kg stream sediment C km^-1",method="Bridget morphology survey"),
-                           wsa=list(old_name="Wood.Surface.Area..m2.",new_name="woodSurfaceArea",unit="m^2",method="Bridget morphology survey"))
+                           #tcl=list(old_name="totalChannelLength",new_name="totalChannelLength",unit="m",method="Bridget morphology survey"),
+                           sopk=list(old_name="totalSedOCPerKm",new_name="sedOCPerKm",unit = "Kg stream sediment C km^-1",method="Bridget morphology survey"))
 morph=addUnitMethod(morph,name_unit_method_list)
 morph$dateTime=as.Date("2015/8/1")
 morph$QCStatusOK=T
@@ -209,7 +219,7 @@ addData(morph,
         batchSource="C:/Users/Sam/Documents/LeakyRivers/Data/morph/wholBeckmanLongitudnalJams_NSV_GC.csv",
         inEPSG=4326,
         streamSnapDistCells=50,
-        addMidpoint=F)
+        addMidpoint=T)
 
 
 
@@ -245,7 +255,7 @@ dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 dbGetQuery(leakyDB,"SELECT * FROM Batches")
 
 
-characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:6,21:47))
+characterizePointsByAreas(pointsBatch=5,dataTypesToAdd=c(1:34))
 
 
 ###############----------add many metrics to areas
@@ -255,10 +265,10 @@ characterizePointsByAreas(pointsBatch=6,dataTypesToAdd=c(1:6,21:47))
 # characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:5,20:38,47:58),newBatchName = "mean of segPoint values")
 # characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(20:58),newBatchName = "mean of segPoint values")
 
-characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:59),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:59),newBatchName="mean of segPoint values")
-characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:59),newBatchName = "mean of segPoint values")
-characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(1:59),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="Bob Metabolism Data",addDTs=c(1:46),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName = "Bridget Geomorph Survey",addDTs=c(1:46),newBatchName="mean of segPoint values")
+characterizeAreas(areasBatchName="Wohl Beckman 2014",addDTs=c(1:46),newBatchName = "mean of segPoint values")
+characterizeAreas(areasBatchName="mikeSamWidths",addDTs = c(1:46),newBatchName = "mean of segPoint values")
 
 
 ###############----------add watershedID to locations---------------------################

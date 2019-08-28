@@ -443,9 +443,9 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
   #add new data types for mean data
   oldDTs=dbGetQuery(leakyDB,paste0("SELECT * FROM DataTypes WHERE DataTypes.dataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
   newDTs=data.frame(oldIDX=oldDTs$dataTypeIDX)
-  newDTs$metric=paste0("med_",oldDTs$metric)
+  newDTs$metric=paste0("mean_",oldDTs$metric)
   newDTs$unit=oldDTs$unit
-  newDTs$method=paste("median of dataTypeIDX",newDTs$oldIDX)
+  newDTs$method=paste("mean of dataTypeIDX",newDTs$oldIDX)
   newDTs$newIDX=0
   
   #this is stupid, but oh well...
@@ -499,7 +499,7 @@ characterizeAreas=function(areasBatchName,addDTs,newBatchName){
     locData=dbGetQuery(leakyDB,paste0("SELECT * FROM Data WHERE locationIDX IN (",paste(locIDXs,collapse=", "),") AND DataTypeIDX IN (",paste(addDTs,collapse=", "),")"))
     if(nrow(locData)>1){
       locData=plyr::rename(locData,replace=c("dataTypeIDX"="oldDataTypeIDX","dataIDX"="oldDataIDX"))
-      #aggregate w/ median
+      #aggregate w/ mean
       #locData=stats::aggregate(locData,by=list(dtIDX=locData$oldDataTypeIDX),FUN=aggMeanFun)
       locData=stats::aggregate(value~oldDataTypeIDX,data=locData,FUN=aggMeanFun,na.action=na.omit)
       
@@ -563,6 +563,14 @@ characterizePointsByAreas=function(pointsBatch,dataTypesToAdd){
         }
         
       }
+      
+      #write point area relationships to PointsInAreas table
+      loc.x.pt=dbGetQuery(leakyDB, "SELECT locationIDX, pointIDX FROM Locations")
+      
+      thisPtIDXs=loc.x.pt[loc.x.pt$locationIDX %in% thisLocIDXs,"pointIDX"]
+      writeDF=data.frame(pointIDX=thisPtIDXs,areaIDX=thisAreaIDX)
+      
+      dbWriteTable(leakyDB,name="PointsInAreas",value=writeDF,append=T)
     }
   }
 }

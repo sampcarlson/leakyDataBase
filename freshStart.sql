@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS leakyDB.Watersheds;
 DROP TABLE IF EXISTS leakyDB.Areas;
 DROP TABLE IF EXISTS leakyDB.Points;
 DROP TABLE IF EXISTS leakyDB.Batches;
+DROP TABLE IF EXISTS leakyDB.PointsInAreas;
 
 CREATE TABLE DataTypes (
     dataTypeIDX INTEGER PRIMARY KEY UNIQUE NOT NULL,
@@ -57,4 +58,9 @@ CREATE TABLE Batches (
 	batchName TEXT,
 	importDateTime TEXT,
 	source TEXT
+);
+
+CREATE TABLE PointsInAreas (
+	pointIDX INTEGER,
+	areaIDX INTEGER
 );
